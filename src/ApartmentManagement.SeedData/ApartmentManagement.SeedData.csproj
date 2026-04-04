@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ApartmentManagement.DataSeed</RootNamespace>
+    <AssemblyName>ApartmentManagement.SeedData</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ApartmentManagement.API\ApartmentManagement.API.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\ApartmentManagement.API\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

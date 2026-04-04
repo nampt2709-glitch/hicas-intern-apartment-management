@@ -1,0 +1,743 @@
+{
+  "info": {
+    "name": "Apartment Management API v1.0",
+    "description": "Import vào Postman. Chạy **Auth > Login** để script tự set `token`. Các request còn lại dùng Bearer {{token}}. Đổi `baseUrl` nếu cần (Docker mặc định localhost:8080).\n\n`idApartment`, `idUser`, `idUtility`, `purgeUserId` là UUID minh họa (định dạng giống giá trị seed sinh ra; **không** trùng bản ghi thật). Sau khi chạy API/seed, thay bằng id lấy từ response (GET list/detail).\n\nSeed data range: apartments BLK-0001..BLK-0150, bulk users demoblk00..demoblk39@seed.local, canonical accounts admin1/admin2 and user1..user6 @ apartment.local. Các giá trị sample trong collection được đặt trong đúng range seed sinh ra.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "idApartment",
+      "value": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+    },
+    {
+      "key": "idUser",
+      "value": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+    },
+    {
+      "key": "idUtility",
+      "value": "6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890"
+    },
+    {
+      "key": "purgeUserId",
+      "value": "9c2d4e6f-8a0b-4c1d-9258-3f4a5b6c7981"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin1@apartment.local\",\n  \"password\": \"Admin@12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  const t = j.data?.tokens?.accessToken;",
+                  "  if (t) { pm.collectionVariables.set('token', t); }",
+                  "} catch (e) {}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/register",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"Register!1Abc\",\n  \"fullName\": \"New Resident\",\n  \"phoneNumber\": \"+84901234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/refresh",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessToken\": \"paste-access-token\",\n  \"refreshToken\": \"paste-refresh-token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessToken\": \"paste-access-token\",\n  \"refreshToken\": \"paste-refresh-token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/forgot-password",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user6@apartment.local\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/reset-password",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user6@apartment.local\",\n  \"token\": \"paste-token-from-dev-forgot-response\",\n  \"newPassword\": \"NewStr0ng!Pass\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Me (auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Apartments",
+      "item": [
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments?pageNumber=1&pageSize=10"
+          }
+        },
+        {
+          "name": "My apartment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments/me"
+          }
+        },
+        {
+          "name": "Get by id (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments/{{idApartment}}"
+          }
+        },
+        {
+          "name": "Create (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentNumber\": \"BLK-0150\",\n  \"floor\": 7,\n  \"area\": 58.54,\n  \"status\": 0,\n  \"description\": \"Demo apartment unit 150\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments/{{idApartment}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentNumber\": \"BLK-0150\",\n  \"floor\": 8,\n  \"area\": 59.2,\n  \"status\": 1,\n  \"description\": \"Updated demo description 150\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments/{{idApartment}}"
+          }
+        },
+        {
+          "name": "Restore (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments/{{idApartment}}/restore"
+          }
+        },
+        {
+          "name": "Upload image (Admin, form-data)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Apartments/{{idApartment}}/images",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users?pageNumber=1&pageSize=10"
+          }
+        },
+        {
+          "name": "Create (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff.new@example.com\",\n  \"password\": \"CreateUser!1Xyz\",\n  \"fullName\": \"Staff Account\",\n  \"phoneNumber\": \"+84901112233\",\n  \"roles\": [\n    \"User\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get by id (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/{{idUser}}"
+          }
+        },
+        {
+          "name": "Update user (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/{{idUser}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012\",\n  \"email\": \"demoblk39@seed.local\",\n  \"fullName\": \"Resident Demo 40\",\n  \"phoneNumber\": \"+84901654321\",\n  \"avatarPath\": null,\n  \"roles\": [\n    \"User\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (Admin soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/{{idUser}}"
+          }
+        },
+        {
+          "name": "Purge (Admin hard delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/{{purgeUserId}}/purge"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/me"
+          }
+        },
+        {
+          "name": "Update me",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"My New Name\",\n  \"phoneNumber\": \"+84901234567\",\n  \"currentPassword\": \"User@12345\",\n  \"newPassword\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin reset password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Users/{{idUser}}/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"AdminSet!999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Residents",
+      "item": [
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents?pageNumber=1&pageSize=10"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents/me"
+          }
+        },
+        {
+          "name": "Get by id (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents/{{idUser}}"
+          }
+        },
+        {
+          "name": "Create (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": \"8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089\",\n  \"userId\": null,\n  \"fullName\": \"Guest resident 149\",\n  \"phoneNumber\": \"+84901654321\",\n  \"email\": \"guest149@seed.local\",\n  \"isOwner\": false,\n  \"moveInDate\": \"2025-02-01T00:00:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents/{{idUser}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": \"8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089\",\n  \"userId\": null,\n  \"fullName\": \"Guest resident 149\",\n  \"phoneNumber\": \"+84901654321\",\n  \"email\": \"guest149@seed.local\",\n  \"isOwner\": true,\n  \"moveInDate\": \"2025-02-01T00:00:00.000Z\",\n  \"moveOutDate\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents/{{idUser}}"
+          }
+        },
+        {
+          "name": "Restore (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Residents/{{idUser}}/restore"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "item": [
+        {
+          "name": "List (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices?pageNumber=1&pageSize=10"
+          }
+        },
+        {
+          "name": "My invoices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices/me?pageNumber=1&pageSize=10"
+          }
+        },
+        {
+          "name": "Get by id (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices/{{idUser}}"
+          }
+        },
+        {
+          "name": "Create (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": \"8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089\",\n  \"title\": \"Invoice 2025-03 — unit 150\",\n  \"billingMonth\": \"2025-03-01\",\n  \"issueDate\": \"2025-03-05T00:00:00.000Z\",\n  \"dueDate\": \"2025-03-19T00:00:00.000Z\",\n  \"isPaid\": false,\n  \"details\": [\n    {\n      \"utilityServiceId\": \"6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890\",\n      \"quantity\": 24,\n      \"unitPrice\": 2200,\n      \"note\": \"Line 12\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices/{{idUser}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": \"8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089\",\n  \"title\": \"Invoice 2025-03 — unit 150 (revised)\",\n  \"billingMonth\": \"2025-03-01\",\n  \"issueDate\": \"2025-03-05T00:00:00.000Z\",\n  \"dueDate\": \"2025-03-19T00:00:00.000Z\",\n  \"isPaid\": true,\n  \"details\": [\n    {\n      \"utilityServiceId\": \"6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890\",\n      \"quantity\": 28,\n      \"unitPrice\": 2200,\n      \"note\": \"Line 12 adjusted\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices/{{idUser}}"
+          }
+        },
+        {
+          "name": "Restore (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Invoices/{{idUser}}/restore"
+          }
+        }
+      ]
+    },
+    {
+      "name": "UtilityServices",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/utilityservices?pageNumber=1&pageSize=20"
+          }
+        },
+        {
+          "name": "Get by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/utilityservices/{{idUtility}}"
+          }
+        },
+        {
+          "name": "Create (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/utilityservices",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"Solar maintenance\",\n  \"unitPrice\": 4500,\n  \"unit\": \"month\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/utilityservices/{{idUtility}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceName\": \"Solar maintenance\",\n  \"unitPrice\": 4600,\n  \"unit\": \"month\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/utilityservices/{{idUtility}}"
+          }
+        },
+        {
+          "name": "Restore (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/utilityservices/{{idUtility}}/restore"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feedbacks",
+      "item": [
+        {
+          "name": "List",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks?pageNumber=1&pageSize=20"
+          }
+        },
+        {
+          "name": "Mine",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks/me?pageNumber=1&pageSize=20"
+          }
+        },
+        {
+          "name": "Tree",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks/tree"
+          }
+        },
+        {
+          "name": "Flattened",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks/flattened"
+          }
+        },
+        {
+          "name": "Get by id (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks/{{idUser}}"
+          }
+        },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Elevator noise at night — please check.\",\n  \"referenceApartmentId\": \"8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089\",\n  \"referenceInvoiceId\": null,\n  \"parentFeedbackId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks/{{idUser}}"
+          }
+        },
+        {
+          "name": "Restore (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Feedbacks/{{idUser}}/restore"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "Avatar (form-data)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Uploads/avatar",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Performance",
+      "item": [
+        {
+          "name": "Report (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1.0/Performance"
+          }
+        }
+      ]
+    }
+  ]
+}

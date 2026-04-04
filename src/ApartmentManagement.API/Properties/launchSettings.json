@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "ApartmentManagement.API": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:61515;http://localhost:61516"
+    }
+  }
+}

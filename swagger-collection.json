@@ -1,0 +1,2338 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Apartment Management API v1.0",
+    "version": "1.0.0",
+    "description": "OpenAPI 3 — import vào Swagger Editor / UI. Mọi JSON body dùng schema có `example` trên từng field. Các UUID trong ví dụ có dạng ngẫu nhiên (giống `Guid.NewGuid()` khi seed) và **không** phải id thật trong DB — sau khi seed, thay bằng giá trị từ API. JWT: login rồi gửi Authorization: Bearer. Seed data range: apartments BLK-0001..BLK-0150, bulk users demoblk00..demoblk39@seed.local, canonical accounts admin1/admin2 and user1..user6 @ apartment.local. UUID examples are placeholders; after seeding, lấy ID thật từ API list/detail."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Đăng nhập, token, profile"
+    },
+    {
+      "name": "Apartments",
+      "description": "Căn hộ"
+    },
+    {
+      "name": "Users",
+      "description": "Người dùng (Admin / me)"
+    },
+    {
+      "name": "Residents",
+      "description": "Cư dân"
+    },
+    {
+      "name": "Invoices",
+      "description": "Hóa đơn"
+    },
+    {
+      "name": "UtilityServices",
+      "description": "Dịch vụ tiện ích"
+    },
+    {
+      "name": "Feedbacks",
+      "description": "Phản hồi / góp ý"
+    },
+    {
+      "name": "Uploads",
+      "description": "Upload file"
+    },
+    {
+      "name": "Performance",
+      "description": "Chỉ số server (Admin)"
+    }
+  ],
+  "paths": {
+    "/api/v1.0/Auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1.0/Auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register (self-service)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Validation or identity error"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1.0/Auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1.0/Auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logout",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Forgot password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1.0/Auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Reset password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1.0/Auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Current user (auth)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Apartments": {
+      "get": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "List apartments (Admin)",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "Create apartment (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApartmentCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Apartments/me": {
+      "get": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "My apartment",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Apartments/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "Get apartment by id (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "Update apartment (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApartmentUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "Soft delete apartment (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Apartments/{id}/restore": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "Restore apartment (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Apartments/{id}/images": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Apartments"
+        ],
+        "summary": "Upload apartment image (Admin, multipart)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG/PNG/WebP image"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List users (Admin)",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create user (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Validation or identity error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Current user profile",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update my profile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMyProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Users/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get user (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update user (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CurrentUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Soft delete user (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Users/{id}/purge": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Purge user permanently (Admin)",
+        "description": "Removes Identity user, refresh tokens, authored feedbacks, and unlinks residents.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Users/{id}/password": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Admin reset user password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetUserPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Residents": {
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "List residents (Admin)",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Create resident (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResidentCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Residents/me": {
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "My resident record",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Residents/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Get resident (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Update resident (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResidentUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Delete resident (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Residents/{id}/restore": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Residents"
+        ],
+        "summary": "Restore resident (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Invoices": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "List invoices (Admin)",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Create invoice (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Invoices/me": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "My invoices",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Invoices/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Get invoice (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Update invoice (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Delete invoice (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Invoices/{id}/restore": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Restore invoice (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/UtilityServices": {
+      "get": {
+        "tags": [
+          "UtilityServices"
+        ],
+        "summary": "List utility services",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "UtilityServices"
+        ],
+        "summary": "Create utility service (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilityServiceCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/UtilityServices/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890"
+        }
+      ],
+      "get": {
+        "tags": [
+          "UtilityServices"
+        ],
+        "summary": "Get utility service",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "UtilityServices"
+        ],
+        "summary": "Update utility service (Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilityServiceUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "UtilityServices"
+        ],
+        "summary": "Delete utility service (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/UtilityServices/{id}/restore": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890"
+        }
+      ],
+      "post": {
+        "tags": [
+          "UtilityServices"
+        ],
+        "summary": "Restore utility service (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Feedbacks": {
+      "get": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "List feedbacks",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "Create feedback",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Feedbacks/me": {
+      "get": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "My feedback posts",
+        "parameters": [
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "example": 1
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "example": 10
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": ""
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "example": "createdAt"
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          },
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Feedbacks/tree": {
+      "get": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "Feedback tree",
+        "parameters": [
+          {
+            "name": "rootFeedbackId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            },
+            "example": null
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Feedbacks/flattened": {
+      "get": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "Feedback flattened",
+        "parameters": [
+          {
+            "name": "rootFeedbackId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            },
+            "example": null
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Feedbacks/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "Get feedback by id (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "Delete feedback",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Feedbacks/{id}/restore": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Feedbacks"
+        ],
+        "summary": "Restore feedback (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Uploads/avatar": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Upload avatar (multipart)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1.0/Performance": {
+      "get": {
+        "tags": [
+          "Performance"
+        ],
+        "summary": "Performance report (Admin)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "LoginRequestDto": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "admin3@apartment.local"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "ExampleFormat!1Abc"
+          }
+        }
+      },
+      "RegisterRequestDto": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "fullName"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "newuser@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "Register!1Abc"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "New Resident"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+84901234567"
+          }
+        }
+      },
+      "CreateUserRequestDto": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "fullName",
+          "roles"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "staff.new@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "CreateUser!1Xyz"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Staff Account"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+84901112233"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "Admin",
+                "User"
+              ]
+            },
+            "example": [
+              "User"
+            ]
+          }
+        }
+      },
+      "RefreshTokenRequestDto": {
+        "type": "object",
+        "required": [
+          "accessToken",
+          "refreshToken"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "refreshToken": {
+            "type": "string",
+            "example": "base64-or-hex-refresh-token-string-from-login-response"
+          }
+        }
+      },
+      "ForgotPasswordRequestDto": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user6@apartment.local"
+          }
+        }
+      },
+      "ResetPasswordRequestDto": {
+        "type": "object",
+        "required": [
+          "email",
+          "token",
+          "newPassword"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "user6@apartment.local"
+          },
+          "token": {
+            "type": "string",
+            "example": "reset-token-from-forgot-password-dev-response"
+          },
+          "newPassword": {
+            "type": "string",
+            "example": "NewStr0ng!Pass"
+          }
+        }
+      },
+      "UpdateMyProfileDto": {
+        "type": "object",
+        "required": [
+          "fullName"
+        ],
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Resident Demo 40"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+84901654321"
+          },
+          "currentPassword": {
+            "type": "string",
+            "nullable": true,
+            "example": "ExampleFormat!1Abc"
+          },
+          "newPassword": {
+            "type": "string",
+            "nullable": true,
+            "example": "NewStr0ng!Pass"
+          }
+        }
+      },
+      "CurrentUserDto": {
+        "type": "object",
+        "required": [
+          "userId",
+          "email",
+          "fullName",
+          "roles"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+          },
+          "email": {
+            "type": "string",
+            "example": "demoblk39@seed.local"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Resident Demo 40"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true,
+            "example": "+84901654321"
+          },
+          "avatarPath": {
+            "type": "string",
+            "nullable": true,
+            "example": "/uploads/avatars/..."
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Admin"
+            ]
+          }
+        }
+      },
+      "ResetUserPasswordDto": {
+        "type": "object",
+        "required": [
+          "newPassword"
+        ],
+        "properties": {
+          "newPassword": {
+            "type": "string",
+            "example": "AdminReset!456"
+          }
+        }
+      },
+      "ApartmentCreateDto": {
+        "type": "object",
+        "required": [
+          "apartmentNumber",
+          "floor",
+          "area",
+          "status"
+        ],
+        "properties": {
+          "apartmentNumber": {
+            "type": "string",
+            "example": "BLK-0042"
+          },
+          "floor": {
+            "type": "integer",
+            "example": 7
+          },
+          "area": {
+            "type": "number",
+            "format": "double",
+            "example": 58.54
+          },
+          "status": {
+            "type": "integer",
+            "description": "0=Available, 1=Occupied, 2=Maintenance",
+            "example": 0
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Demo apartment unit 150"
+          }
+        }
+      },
+      "ApartmentUpdateDto": {
+        "type": "object",
+        "required": [
+          "apartmentNumber",
+          "floor",
+          "area",
+          "status"
+        ],
+        "properties": {
+          "apartmentNumber": {
+            "type": "string",
+            "example": "BLK-0042"
+          },
+          "floor": {
+            "type": "integer",
+            "example": 7
+          },
+          "area": {
+            "type": "number",
+            "format": "double",
+            "example": 58.54
+          },
+          "status": {
+            "type": "integer",
+            "description": "0=Available, 1=Occupied, 2=Maintenance",
+            "example": 0
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Updated demo description 150"
+          }
+        }
+      },
+      "ResidentCreateDto": {
+        "type": "object",
+        "required": [
+          "apartmentId",
+          "fullName",
+          "phoneNumber",
+          "isOwner",
+          "moveInDate"
+        ],
+        "properties": {
+          "apartmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "7d2c5e9b-1e4f-4a8c-b243-5f6a7b8c9012"
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Guest resident 149"
+          },
+          "phoneNumber": {
+            "type": "string",
+            "example": "+84901654321"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "guest149@seed.local"
+          },
+          "isOwner": {
+            "type": "boolean",
+            "example": true
+          },
+          "moveInDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-01-15T00:00:00.000Z"
+          }
+        }
+      },
+      "ResidentUpdateDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ResidentCreateDto"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "moveOutDate": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true,
+                "example": null
+              }
+            }
+          }
+        ]
+      },
+      "InvoiceDetailCreateDto": {
+        "type": "object",
+        "required": [
+          "utilityServiceId",
+          "quantity",
+          "unitPrice"
+        ],
+        "properties": {
+          "utilityServiceId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890"
+          },
+          "quantity": {
+            "type": "number",
+            "example": 24
+          },
+          "unitPrice": {
+            "type": "number",
+            "example": 2200
+          },
+          "note": {
+            "type": "string",
+            "nullable": true,
+            "example": "Line 12"
+          }
+        }
+      },
+      "InvoiceCreateDto": {
+        "type": "object",
+        "required": [
+          "apartmentId",
+          "title",
+          "billingMonth",
+          "issueDate",
+          "dueDate",
+          "isPaid",
+          "details"
+        ],
+        "properties": {
+          "apartmentId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+          },
+          "title": {
+            "type": "string",
+            "example": "Invoice 2025-03 — unit 150"
+          },
+          "billingMonth": {
+            "type": "string",
+            "format": "date",
+            "example": "2025-03-01"
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-03-05T00:00:00.000Z"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-03-19T00:00:00.000Z"
+          },
+          "isPaid": {
+            "type": "boolean",
+            "example": false
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceDetailCreateDto"
+            },
+            "example": [
+              {
+                "utilityServiceId": "6b1e3d8c-0f2a-4b9e-a156-3e4f5a6b7890",
+                "quantity": 24,
+                "unitPrice": 2200,
+                "note": "Line 12"
+              }
+            ]
+          }
+        }
+      },
+      "InvoiceUpdateDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InvoiceCreateDto"
+          }
+        ]
+      },
+      "UtilityServiceCreateDto": {
+        "type": "object",
+        "required": [
+          "serviceName",
+          "unitPrice",
+          "unit",
+          "isActive"
+        ],
+        "properties": {
+          "serviceName": {
+            "type": "string",
+            "example": "Electricity"
+          },
+          "unitPrice": {
+            "type": "number",
+            "example": 1000
+          },
+          "unit": {
+            "type": "string",
+            "example": "kWh"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "UtilityServiceUpdateDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UtilityServiceCreateDto"
+          }
+        ]
+      },
+      "FeedbackCreateDto": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "example": "Lobby light is broken on floor 3."
+          },
+          "referenceApartmentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "8f3e2c1a-9b5d-4f7e-a162-3c4d5e6f7089"
+          },
+          "referenceInvoiceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": null
+          },
+          "parentFeedbackId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": null
+          }
+        }
+      }
+    }
+  }
+}

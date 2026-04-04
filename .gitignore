@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.db
+*.mdf
+*.ldf
+.env
+seed-credentials.generated.json
