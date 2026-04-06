@@ -2,7 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace ApartmentManagement.Infrastructure;
 
-// Giới hạn quota cửa sổ cố định (in-memory) cho quy tắc cần khóa đa chiều (IP + tài khoản) hoặc chỉ đếm lỗi. Reset khi restart process.
+// Giới hạn quota cửa sổ cố định cho quy tắc cần khóa đa chiều (IP + tài khoản) hoặc chỉ đếm lỗi. Reset khi restart process.
 public sealed class QuotaRateLimiter
 {
     private readonly IMemoryCache _cache;

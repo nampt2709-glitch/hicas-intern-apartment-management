@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using Serilog;
+using Serilog.Context;
 
 namespace ApartmentManagement.Middlewares;
 
@@ -61,53 +62,61 @@ public sealed class SerilogActivityAuditMiddleware
         }
 
         // Sau khi response hoàn tất: log Activity; nếu thành công và không phải auth — log Audit kèm body snippet.
+        // OnCompleted chạy sau khi CorrelationIdMiddleware đã dispose LogContext — phải PushProperty lại từ Items (hoặc TraceIdentifier).
         context.Response.OnCompleted(() =>
         {
-            var status = context.Response.StatusCode;
-            var isSuccess = status >= 200 && status < 300;
+            var correlationId = context.Items.TryGetValue(CorrelationIdMiddleware.ItemKey, out var cid) && cid is string s && !string.IsNullOrWhiteSpace(s)
+                ? s.Trim()
+                : context.TraceIdentifier;
 
-            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var actor = context.User.Identity?.IsAuthenticated == true ? userId ?? "unknown" : "anonymous";
-
-            var method = context.Request.Method;
-            var path = context.Request.Path.Value ?? string.Empty;
-
-            var errorDetail = context.Items.TryGetValue("error_detail", out var detailObj) && detailObj is not null
-                ? detailObj.ToString()
-                : $"HTTP {status}";
-
-            var activityMessage = isSuccess
-                ? $"{method} {path} - actor={actor} - success"
-                : $"{method} {path} - actor={actor} - failed - {errorDetail}";
-
-            Log.ForContext("LogType", "Activity").Information("{Message}", activityMessage);
-
-            if (!isSuccess)
-                return Task.CompletedTask;
-
-            if (IsAuthApiPath(path))
-                return Task.CompletedTask;
-
-            if (!IsAuthApiPath(path) &&
-                (method is "GET" or "POST" or "PUT" or "DELETE"))
+            using (LogContext.PushProperty("CorrelationId", correlationId ?? string.Empty))
             {
-                var auditKind = method switch
+                var status = context.Response.StatusCode;
+                var isSuccess = status >= 200 && status < 300;
+
+                var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var actor = context.User.Identity?.IsAuthenticated == true ? userId ?? "unknown" : "anonymous";
+
+                var method = context.Request.Method;
+                var path = context.Request.Path.Value ?? string.Empty;
+
+                var errorDetail = context.Items.TryGetValue("error_detail", out var detailObj) && detailObj is not null
+                    ? detailObj.ToString()
+                    : $"HTTP {status}";
+
+                var activityMessage = isSuccess
+                    ? $"{method} {path} - actor={actor} - success"
+                    : $"{method} {path} - actor={actor} - failed - {errorDetail}";
+
+                Log.ForContext("LogType", "Activity").Information("{Message}", activityMessage);
+
+                if (!isSuccess)
+                    return Task.CompletedTask;
+
+                if (IsAuthApiPath(path))
+                    return Task.CompletedTask;
+
+                if (!IsAuthApiPath(path) &&
+                    (method is "GET" or "POST" or "PUT" or "DELETE"))
                 {
-                    "POST" => "CREATE",
-                    "PUT" => "UPDATE",
-                    "DELETE" => "DELETE",
-                    "GET" => "VIEW",
-                    _ => "ACTION"
-                };
+                    var auditKind = method switch
+                    {
+                        "POST" => "CREATE",
+                        "PUT" => "UPDATE",
+                        "DELETE" => "DELETE",
+                        "GET" => "VIEW",
+                        _ => "ACTION"
+                    };
 
-                var bodySnippet = context.Items.TryGetValue("AuditRequestBody", out var snippetObj) && snippetObj is not null
-                    ? snippetObj.ToString() ?? string.Empty
-                    : string.Empty;
+                    var bodySnippet = context.Items.TryGetValue("AuditRequestBody", out var snippetObj) && snippetObj is not null
+                        ? snippetObj.ToString() ?? string.Empty
+                        : string.Empty;
 
-                var auditMessage = $"{auditKind} {method} {path} - actor={actor}" +
-                                    (bodySnippet.Length > 0 ? $" - body={bodySnippet}" : string.Empty);
+                    var auditMessage = $"{auditKind} {method} {path} - actor={actor}" +
+                                        (bodySnippet.Length > 0 ? $" - body={bodySnippet}" : string.Empty);
 
-                Log.ForContext("LogType", "Audit").Information("{Message}", auditMessage);
+                    Log.ForContext("LogType", "Audit").Information("{Message}", auditMessage);
+                }
             }
 
             return Task.CompletedTask;
