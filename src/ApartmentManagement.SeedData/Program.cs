@@ -1,3 +1,4 @@
+// Công cụ dòng lệnh: nạp dữ liệu mẫu (~1000 bản ghi) hoặc xóa dữ liệu đã gắn nhãn seed.
 using ApartmentManagement.API.V1.Entities.Security;
 using ApartmentManagement.Data;
 using ApartmentManagement.DataSeed;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+// Đọc biến môi trường (.env) nếu có.
 DotEnvLoader.TryLoad();
 DotEnvLoader.TryLoad(AppContext.BaseDirectory);
 
@@ -17,6 +19,7 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
     Args = args
 });
 
+// Chuỗi kết nối SQL Server (bắt buộc).
 var conn = builder.Configuration["ConnectionStrings:DefaultConnection"];
 if (string.IsNullOrWhiteSpace(conn))
 {
@@ -26,6 +29,7 @@ if (string.IsNullOrWhiteSpace(conn))
 
 builder.Services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Information));
 builder.Services.AddDbContext<ApartmentDbContext>(o => o.UseSqlServer(conn));
+// Cấu hình Identity khớp với API (mật khẩu, email duy nhất).
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     options.User.RequireUniqueEmail = true;
@@ -40,6 +44,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 
 var host = builder.Build();
 
+// Vòng lặp menu đơn giản: chèn / xóa seed / thoát.
 while (true)
 {
     Console.WriteLine();
@@ -53,10 +58,12 @@ while (true)
     {
         switch (line)
         {
+            // Nạp dữ liệu mẫu qua SeedData.InsertAsync.
             case "1":
                 await SeedData.InsertAsync(host.Services);
                 Console.WriteLine("Done.");
                 break;
+            // Xóa dữ liệu đã gắn nhãn seed (theo SeedDataTag).
             case "2":
                 await SeedData.DeleteAsync(host.Services);
                 Console.WriteLine("Done.");

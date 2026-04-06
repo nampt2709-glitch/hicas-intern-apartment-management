@@ -13,13 +13,13 @@ using Microsoft.Extensions.Logging;
 
 namespace ApartmentManagement.DataSeed;
 
-/// <summary>Inserts ~1000 realistic rows across all domain tables + Identity, and removes them in FK-safe order.</summary>
+// Chèn ~1000 bản ghi thực tế trên mọi bảng nghiệp vụ + Identity; xóa theo thứ tự an toàn FK.
 public static class SeedData
 {
-    /// <summary>Tag stored in domain <c>CreatedBy</c> for seeded rows. String value kept stable for existing databases.</summary>
+    // Giá trị CreatedBy cho bản ghi seed (giữ cố định để tương thích DB cũ).
     public const string SeedDataTag = "bulk-demo-seed";
 
-    // Row budget (sum = 1000): users 40 + userRoles 40 + utilities 5 + apartments 150 + images 300 + residents 150 + invoices 100 + details 200 + feedbacks 10 + refresh 5
+    // Ngân sách dòng (tổng ~1000): user + role + tiện ích + căn + ảnh + cư dân + hóa đơn + chi tiết + phản hồi + refresh
     private const int UserCount = 40;
     private const int AdminCount = 5;
     private const int UtilityCount = 5;
@@ -34,7 +34,7 @@ public static class SeedData
     private const int CanonicalAdminSlots = 2;
     private const int CanonicalUserSlots = 6;
 
-    /// <summary>Postman / local dev defaults; override with SEED_CANONICAL_ADMIN_PASSWORD / SEED_CANONICAL_USER_PASSWORD.</summary>
+    // Mật khẩu mặc định cho tài khoản chuẩn (Postman/dev); ghi đè bằng biến môi trường SEED_*.
     private static string CanonicalAdminPassword =>
         Environment.GetEnvironmentVariable("SEED_CANONICAL_ADMIN_PASSWORD")?.Trim() is { Length: > 0 } p
             ? p
@@ -49,7 +49,7 @@ public static class SeedData
 
     private sealed record K6CredentialRow(string Label, string Email, string Password);
 
-    /// <summary>Builds admin1..admin2 and user1..user6 emails/roles/passwords from patterns (not a flat hardcoded list of 8 objects).</summary>
+    // Sinh admin1..admin2 và user1..user6 theo quy tắc (không liệt kê cứng 8 object).
     private static IReadOnlyList<CanonicalSeedAccount> BuildCanonicalSeedAccounts()
     {
         static string UserOrdinal(int n) => n switch
@@ -90,6 +90,7 @@ public static class SeedData
         return list;
     }
 
+    // Đảm bảo tài khoản demo @apartment.local tồn tại (k6/Postman); trả về hàng để ghi file credentials.
     private static async Task<IReadOnlyList<K6CredentialRow>> EnsureCanonicalDemoAccountsAsync(
         UserManager<ApplicationUser> userManager,
         ILogger logger,
@@ -138,6 +139,7 @@ public static class SeedData
         return rows;
     }
 
+    // Luồng chèn chính: vai trò, user demo, user bulk, tiện ích, căn, ảnh, cư dân, hóa đơn, phản hồi, refresh token.
     public static async Task InsertAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
@@ -152,6 +154,7 @@ public static class SeedData
             return;
         }
 
+        // Vai trò Admin/User cho Identity.
         foreach (var role in new[] { "Admin", "User" })
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -164,6 +167,7 @@ public static class SeedData
                 "Expected {Expected} canonical @apartment.local accounts; {Actual} ready for k6 credentials file.",
                 CanonicalAdminSlots + CanonicalUserSlots, canonicalK6Rows.Count);
 
+        // Người dùng bulk dùng chung một mật khẩu ngẫu nhiên mạnh.
         var sharedPassword = GenerateSeedPassword();
         var createdUsers = new List<ApplicationUser>(UserCount);
         for (var i = 0; i < UserCount; i++)
@@ -192,6 +196,7 @@ public static class SeedData
         if (createdUsers.Count == 0)
             throw new InvalidOperationException("No users were created; aborting seed.");
 
+        // Ghi file JSON thông tin đăng nhập phục vụ k6/Postman (không commit file này).
         WriteCredentialsFile(canonicalK6Rows, createdUsers, sharedPassword, logger);
 
         var utc = DateTime.UtcNow;
@@ -214,6 +219,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Căn hộ demo.
         var apartmentIds = new Guid[ApartmentCount];
         for (var i = 0; i < ApartmentCount; i++)
         {
@@ -235,6 +241,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Ảnh gallery (mỗi căn tối đa 2 ảnh theo vòng lặp).
         var imgIx = 0;
         while (imgIx < ImagesTotal)
         {
@@ -257,6 +264,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Cư dân: ưu tiên liên kết user bulk vừa tạo.
         for (var r = 0; r < ResidentCount; r++)
         {
             Guid? uid = r < createdUsers.Count ? createdUsers[r].Id : null;
@@ -278,6 +286,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Hóa đơn theo tháng (2025+).
         var invoiceIds = new Guid[InvoiceCount];
         for (var inv = 0; inv < InvoiceCount; inv++)
         {
@@ -302,6 +311,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Chi tiết hóa đơn (2 dòng mỗi hóa đơn cho đến khi hết ngân sách dòng).
         var detailIx = 0;
         for (var inv = 0; inv < InvoiceCount; inv++)
         {
@@ -329,6 +339,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Cập nhật tổng tiền hóa đơn từ tổng SubTotal chi tiết.
         foreach (var invEntity in await db.Invoices.IgnoreQueryFilters().Where(i => i.CreatedBy == SeedDataTag).ToListAsync(cancellationToken))
         {
             invEntity.TotalAmount = await db.InvoiceDetails.IgnoreQueryFilters()
@@ -338,6 +349,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Phản hồi: 4 luồng gốc + trả lời lồng nhau (path materialized).
         var feedbackUserIds = createdUsers.Take(Math.Min(4, createdUsers.Count)).Select(u => u.Id).ToArray();
         if (feedbackUserIds.Length == 0)
             feedbackUserIds = createdUsers.Select(u => u.Id).Take(1).ToArray();
@@ -377,6 +389,7 @@ public static class SeedData
 
         await db.SaveChangesAsync(cancellationToken);
 
+        // Refresh token mẫu (hash SHA-256).
         for (var t = 0; t < RefreshTokenCount && t < createdUsers.Count; t++)
         {
             var raw = RandomNumberGenerator.GetBytes(32);
@@ -400,6 +413,7 @@ public static class SeedData
             createdUsers.Count, ApartmentCount, ImagesTotal, ResidentCount, InvoiceCount, InvoiceDetailsTotal, FeedbackCount, RefreshTokenCount, SeedDataTag);
     }
 
+    // Ghi seed-credentials.generated.json cạnh thư mục chạy (cảnh báo không commit).
     private static void WriteCredentialsFile(
         IReadOnlyList<K6CredentialRow> canonicalK6Users,
         IReadOnlyList<ApplicationUser> bulkUsers,
@@ -440,6 +454,7 @@ public static class SeedData
         logger.LogWarning("Wrote {Path} (do not commit).", path);
     }
 
+    // Mật khẩu ngẫu nhiên đủ lớp ký tự (upper/lower/số/ký tự đặc biệt).
     private static string GenerateSeedPassword()
     {
         const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -472,13 +487,14 @@ public static class SeedData
         }
     }
 
+    // Băm chuỗi UTF-8 sang hex SHA-256 (thống nhất với lưu refresh token).
     private static string Sha256Hex(string s)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(s));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    /// <summary>Removes tagged domain rows only (no Identity). For unit tests.</summary>
+    // Xóa chỉ bản ghi domain gắn tag (không đụng Identity). Dùng cho unit test.
     public static async Task CleanupTaggedDomainOnlyAsync(ApartmentDbContext db, CancellationToken cancellationToken = default)
     {
         await UnlinkParentLinksToTaggedFeedbacksAsync(db, cancellationToken);
@@ -514,7 +530,7 @@ public static class SeedData
         await DeleteTaggedAsync<Apartment>(db, cancellationToken);
     }
 
-    /// <summary>Removes all rows created with <see cref="SeedDataTag"/> (FK-safe). Does not touch unrelated rows.</summary>
+    // Xóa mọi bản ghi có SeedDataTag (thứ tự FK an toàn); sau đó xóa user seed qua Identity.
     public static async Task DeleteAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
@@ -539,6 +555,7 @@ public static class SeedData
         logger.LogInformation("Seed data removed (tag={Tag}).", SeedDataTag);
     }
 
+    // Xóa khỏi DB mọi bản ghi BaseEntity có CreatedBy == SeedDataTag.
     private static async Task DeleteTaggedAsync<TEntity>(ApartmentDbContext db, CancellationToken cancellationToken)
         where TEntity : BaseEntity
     {
@@ -551,6 +568,7 @@ public static class SeedData
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    // Gỡ ParentFeedbackId trỏ tới phản hồi seed trước khi xóa cây phản hồi (tránh FK).
     private static async Task UnlinkParentLinksToTaggedFeedbacksAsync(ApartmentDbContext db, CancellationToken cancellationToken)
     {
         var taggedParentIds = await db.Feedbacks.IgnoreQueryFilters()
