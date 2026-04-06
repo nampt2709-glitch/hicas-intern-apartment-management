@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Lớp cơ sở CRUD có cache: phân trang, tạo/cập nhật/xóa mềm và khôi phục cho thực thể kế thừa <see cref="BaseEntity"/>.
 public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
     where TEntity : BaseEntity, new()
 {
@@ -15,6 +16,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
     protected readonly ICacheService Cache;
     protected readonly IGenericRepository<TEntity> Repository;
 
+    // Gắn mapper, cache và repository generic cho loại thực thể.
     protected CrudServiceBase(IMapper mapper, ICacheService cache, IGenericRepository<TEntity> repository)
     {
         Mapper = mapper;
@@ -22,25 +24,32 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         Repository = repository;
     }
 
+    // Xây truy vấn đọc (mặc định từ repository, có thể ghi đè để Include thêm).
     protected virtual IQueryable<TEntity> BuildReadQuery(bool includeDeleted)
         => Repository.Query(asNoTracking: true, includeDeleted: includeDeleted);
 
+    // Tiền tố phạm vi cache (theo tên loại thực thể).
     protected virtual string CacheScope => typeof(TEntity).Name.ToLowerInvariant();
 
+    // Thời gian sống mặc định của mục cache.
     protected virtual TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
 
+    // Hook trước khi lưu thực thể mới (ghi đè để gán trường tùy chỉnh).
     protected virtual void PrepareForCreate(TEntity entity)
     {
     }
 
+    // Hook cập nhật thực thể từ DTO (mặc định dùng AutoMapper).
     protected virtual void PrepareForUpdate(TEntity entity, TUpdateDto dto)
     {
         Mapper.Map(dto, entity);
     }
 
+    // Áp lọc/tìm kiếm và sắp xếp cho phân trang (mặc định theo CreatedAt giảm dần).
     protected virtual IQueryable<TEntity> ApplySearchAndSort(IQueryable<TEntity> query, PaginationQueryDto paging)
         => query.OrderByDescending(x => x.CreatedAt);
 
+    // Xóa cache theo phạm vi danh sách, chi tiết và cây (nếu lớp con dùng).
     protected virtual async Task InvalidateCacheAsync(CancellationToken cancellationToken)
     {
         await Cache.InvalidateScopeAsync(CacheScope, cancellationToken);
@@ -48,6 +57,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         await Cache.InvalidateScopeAsync(CacheScope + ":tree", cancellationToken);
     }
 
+    // Lấy danh sách phân trang có cache theo tham số truy vấn.
     public virtual async Task<PagedResultDto<TReadDto>> GetPagedAsync(PaginationQueryDto query, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"page={query.PageNumber};size={query.PageSize};search={query.Search};sort={query.SortBy};desc={query.Descending};deleted={query.IncludeDeleted}";
@@ -64,6 +74,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         }, CacheDuration, cancellationToken);
     }
 
+    // Lấy một bản ghi theo Id (có thể gồm bản đã xóa mềm).
     public virtual async Task<TReadDto> GetByIdAsync(Guid id, bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
         return await Cache.GetOrCreateAsync(CacheScope + ":single", id.ToString(), async ct =>
@@ -74,6 +85,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         }, CacheDuration, cancellationToken);
     }
 
+    // Tạo mới thực thể, lưu DB và làm mới cache.
     public virtual async Task<TReadDto> CreateAsync(TCreateDto dto, CancellationToken cancellationToken = default)
     {
         var entity = Mapper.Map<TEntity>(dto);
@@ -87,6 +99,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         return Mapper.Map<TReadDto>(entity);
     }
 
+    // Cập nhật thực thể theo Id và làm mới cache.
     public virtual async Task<TReadDto> UpdateAsync(Guid id, TUpdateDto dto, CancellationToken cancellationToken = default)
     {
         var entity = await Repository.GetByIdAsync(id, asNoTracking: false, includeDeleted: false, cancellationToken: cancellationToken)
@@ -99,6 +112,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         return Mapper.Map<TReadDto>(entity);
     }
 
+    // Xóa mềm bản ghi theo Id.
     public virtual async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entity = await Repository.GetByIdAsync(id, asNoTracking: false, includeDeleted: false, cancellationToken: cancellationToken)
@@ -109,6 +123,7 @@ public abstract class CrudServiceBase<TEntity, TReadDto, TCreateDto, TUpdateDto>
         await InvalidateCacheAsync(cancellationToken);
     }
 
+    // Khôi phục bản ghi đã xóa mềm.
     public virtual async Task RestoreAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var entity = await Repository.GetByIdAsync(id, asNoTracking: false, includeDeleted: true, cancellationToken: cancellationToken)

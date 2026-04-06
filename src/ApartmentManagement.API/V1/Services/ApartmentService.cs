@@ -9,19 +9,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Dịch vụ căn hộ: CRUD chiếu DTO trực tiếp từ truy vấn, đếm cư dân/hóa đơn và đính ảnh tải lên.
 public sealed class ApartmentService : CrudServiceBase<Apartment, ApartmentReadDto, ApartmentCreateDto, ApartmentUpdateDto>, IApartmentService
 {
     private readonly IApartmentRepository _repository;
 
+    // Khởi tạo với repository căn hộ (ảnh, tracked entity).
     public ApartmentService(IMapper mapper, ICacheService cache, IApartmentRepository repository)
         : base(mapper, cache, repository)
     {
         _repository = repository;
     }
 
+    // Truy vấn căn hộ từ repository.
     protected override IQueryable<Apartment> BuildReadQuery(bool includeDeleted)
         => _repository.Query(true, includeDeleted);
 
+    // Chiếu truy vấn sang DTO đọc kèm số lượng cư dân và hóa đơn (không map qua AutoMapper).
     private static IQueryable<ApartmentReadDto> ProjectToReadDto(IQueryable<Apartment> query)
         => query.Select(a => new ApartmentReadDto
         {
@@ -36,6 +40,7 @@ public sealed class ApartmentService : CrudServiceBase<Apartment, ApartmentReadD
             InvoiceCount = a.Invoices.Count()
         });
 
+    // Tìm theo số căn/mô tả và sắp theo number, floor, area hoặc ngày tạo.
     protected override IQueryable<Apartment> ApplySearchAndSort(IQueryable<Apartment> query, PaginationQueryDto paging)
     {
         if (!string.IsNullOrWhiteSpace(paging.Search))
@@ -56,6 +61,7 @@ public sealed class ApartmentService : CrudServiceBase<Apartment, ApartmentReadD
         };
     }
 
+    // Phân trang với chiếu DTO trực tiếp từ IQueryable (tối ưu đếm).
     public override async Task<PagedResultDto<ApartmentReadDto>> GetPagedAsync(
         PaginationQueryDto query,
         CancellationToken cancellationToken = default)
@@ -73,6 +79,7 @@ public sealed class ApartmentService : CrudServiceBase<Apartment, ApartmentReadD
         }, CacheDuration, cancellationToken);
     }
 
+    // Lấy một căn theo Id qua chiếu DTO có cache.
     public override async Task<ApartmentReadDto> GetByIdAsync(
         Guid id,
         bool includeDeleted = false,
@@ -86,18 +93,21 @@ public sealed class ApartmentService : CrudServiceBase<Apartment, ApartmentReadD
         }, CacheDuration, cancellationToken);
     }
 
+    // Tạo căn hộ rồi trả bản đọc đầy đủ qua GetById (đồng bộ số đếm).
     public override async Task<ApartmentReadDto> CreateAsync(ApartmentCreateDto dto, CancellationToken cancellationToken = default)
     {
         var created = await base.CreateAsync(dto, cancellationToken);
         return await GetByIdAsync(created.Id, false, cancellationToken);
     }
 
+    // Cập nhật căn hộ rồi tải lại DTO đọc đầy đủ.
     public override async Task<ApartmentReadDto> UpdateAsync(Guid id, ApartmentUpdateDto dto, CancellationToken cancellationToken = default)
     {
         _ = await base.UpdateAsync(id, dto, cancellationToken);
         return await GetByIdAsync(id, false, cancellationToken);
     }
 
+    // Lấy căn hộ liên kết với cư dân (user) hiện tại.
     public async Task<ApartmentReadDto> GetMineForResidentAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await ProjectToReadDto(
@@ -106,6 +116,7 @@ public sealed class ApartmentService : CrudServiceBase<Apartment, ApartmentReadD
             ?? throw new KeyNotFoundException("No apartment is linked to your account.");
     }
 
+    // Gắn file ảnh đã lưu vào căn: đặt ảnh bìa nếu chưa có và thêm vào bảng ảnh phụ.
     public async Task AttachUploadedImageAsync(
         Guid apartmentId,
         string storedFilePath,

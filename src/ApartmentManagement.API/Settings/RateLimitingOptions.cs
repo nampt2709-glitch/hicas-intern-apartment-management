@@ -1,17 +1,17 @@
 namespace ApartmentManagement.Settings;
 
-/// <summary>Fixed-window limits. API is partitioned per authenticated user (JWT sub) or per IP when anonymous.</summary>
+// Cấu hình giới hạn cửa sổ cố định: theo user đã đăng nhập (JWT sub) hoặc theo IP khi ẩn danh.
 public sealed class RateLimitingOptions
 {
     public const string SectionName = "RateLimiting";
 
-    /// <summary>Authenticated API calls per user per window (mobile + web + polling).</summary>
+    // Số lần gọi API tối đa mỗi user mỗi cửa sổ (mobile/web/polling).
     public int ApiPermitsPerMinutePerUser { get; set; } = 800;
 
-    /// <summary>Unauthenticated traffic per client IP per window (rare for this API; Swagger/probes).</summary>
+    // Số lần gọi API tối đa mỗi IP ẩn danh mỗi cửa sổ (Swagger, probe...).
     public int ApiPermitsPerMinutePerIpAnonymous { get; set; } = 120;
 
-    /// <summary>Login/refresh attempts per IP per window (credential-stuffing protection).</summary>
+    // Số lần đăng nhập/làm mới token tối đa mỗi IP mỗi cửa sổ (chống dò mật khẩu).
     public int AuthPermitsPerMinutePerIp { get; set; } = 25;
 
     public int WindowMinutes { get; set; } = 1;

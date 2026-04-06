@@ -1,5 +1,6 @@
 namespace ApartmentManagement.Utilities;
 
+// Định dạng ảnh suy ra từ magic bytes (không tin phần mở rộng tên file).
 public enum DetectedImageFormat
 {
     None,
@@ -8,8 +9,10 @@ public enum DetectedImageFormat
     Webp
 }
 
+// Tiện ích: nhận diện PNG/JPEG/WebP từ header và khớp với extension/MIME chuẩn.
 public static class FileSignatureHelper
 {
+    // so khớp chữ ký nhị phân theo thứ tự PNG → JPEG → RIFF WebP.
     public static DetectedImageFormat DetectFormat(ReadOnlySpan<byte> header)
     {
         if (header.Length >= 8 &&
@@ -28,6 +31,7 @@ public static class FileSignatureHelper
         return DetectedImageFormat.None;
     }
 
+    // đảm bảo extension (đã lowercase) khớp định dạng đã phát hiện.
     public static bool ExtensionMatchesFormat(string extensionLower, DetectedImageFormat format)
     {
         return format switch
@@ -39,6 +43,7 @@ public static class FileSignatureHelper
         };
     }
 
+    // map sang chuỗi Content-Type chuẩn cho phản hồi HTTP / lưu trữ.
     public static string ToCanonicalMimeType(DetectedImageFormat format) => format switch
     {
         DetectedImageFormat.Jpeg => "image/jpeg",

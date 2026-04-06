@@ -2,14 +2,17 @@ using System.Buffers.Binary;
 
 namespace ApartmentManagement.Utilities;
 
+// Kích thước ảnh (rộng × cao) đọc từ file.
 public readonly record struct ImageDimensions(int Width, int Height);
 
+// Đọc width/height từ đầu file ảnh (PNG/JPEG/WebP) không dùng thư viện ngoài.
 public static class ImageMetadataHelper
 {
     private const int MaxHeaderBytes = 1024 * 1024;
 
     public static ImageDimensions ReadDimensionsAutoDetect(string path)
     {
+        // đọc tối đa MaxHeaderBytes đầu file rồi phân nhánh theo signature.
         using var fs = File.OpenRead(path);
         var toRead = (int)Math.Min(fs.Length, MaxHeaderBytes);
         if (toRead < 24)
@@ -18,6 +21,7 @@ public static class ImageMetadataHelper
         var buffer = new byte[toRead];
         fs.ReadExactly(buffer);
 
+        // IHDR chứa width/height big-endian tại offset cố định.
         if (buffer.Length >= 24 &&
             buffer[0] == 0x89 && buffer[1] == 0x50 && buffer[2] == 0x4E && buffer[3] == 0x47)
         {
@@ -26,9 +30,11 @@ public static class ImageMetadataHelper
             return new ImageDimensions(w, h);
         }
 
+        // tìm marker SOF (0xFFC0...).
         if (buffer.Length >= 3 && buffer[0] == 0xFF && buffer[1] == 0xD8)
             return ReadJpegDimensions(buffer);
 
+        // duyệt chunk VP8X / VP8 / VP8L.
         if (buffer.Length >= 12 &&
             buffer[0] == (byte)'R' && buffer[1] == (byte)'I' && buffer[2] == (byte)'F' && buffer[3] == (byte)'F' &&
             buffer[8] == (byte)'W' && buffer[9] == (byte)'E' && buffer[10] == (byte)'B' && buffer[11] == (byte)'P')
@@ -37,6 +43,7 @@ public static class ImageMetadataHelper
         throw new InvalidOperationException("Unsupported or corrupt image format.");
     }
 
+    // quét từng byte tìm segment SOF và đọc kích thước.
     private static ImageDimensions ReadJpegDimensions(ReadOnlySpan<byte> data)
     {
         for (var i = 0; i < data.Length - 9; i++)
@@ -57,6 +64,7 @@ public static class ImageMetadataHelper
         throw new InvalidOperationException("Could not find JPEG SOF marker in the scanned header.");
     }
 
+    // parse chunk RIFF WebP — VP8X (kích thước ảo), VP8 keyframe, VP8L lossless.
     private static ImageDimensions ReadWebpDimensions(ReadOnlySpan<byte> data)
     {
         var pos = 12;
@@ -98,6 +106,7 @@ public static class ImageMetadataHelper
         throw new InvalidOperationException("Could not read WebP dimensions.");
     }
 
+    // đọc số 24-bit little-endian (dùng trong VP8X).
     private static int ReadUInt24LittleEndian(ReadOnlySpan<byte> span) =>
         span[0] | (span[1] << 8) | (span[2] << 16);
 }

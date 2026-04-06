@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace ApartmentManagement.Performance;
 
-/// <summary>Thread-safe in-memory HTTP performance counters and process/system resource snapshot.</summary>
+// Bộ đếm hiệu năng HTTP trong bộ nhớ (thread-safe) + snapshot CPU/RAM và độ trễ cửa sổ lăn 60 giây.
 public sealed class PerformanceMetricsService
 {
     private const int RollingWindowSeconds = 60;
@@ -20,6 +20,7 @@ public sealed class PerformanceMetricsService
     private DateTime _lastCpuSampleUtc = DateTime.MinValue;
     private double _lastCpuPercent;
 
+    // Ghi request vào hàng đợi cửa sổ + đếm lifetime (500+ = failed).
     public void RecordRequest(string path, int latencyMs, int statusCode)
     {
         if (ShouldExcludePath(path))
@@ -38,6 +39,7 @@ public sealed class PerformanceMetricsService
         }
     }
 
+    // Tính avg latency, RPS (windowCount/60s), CPU % process, RAM; tỷ lệ lỗi lifetime.
     public PerformanceReportSnapshot GetSnapshot()
     {
         var now = DateTime.UtcNow;
@@ -113,6 +115,7 @@ public sealed class PerformanceMetricsService
 
     private static long GetInterlocked(ref long field) => Interlocked.Read(ref field);
 
+    // Loại bỏ entry cũ hơn RollingWindowSeconds.
     private void TrimWindow(DateTime now)
     {
         var cutoff = now.AddSeconds(-RollingWindowSeconds);
@@ -127,6 +130,7 @@ public sealed class PerformanceMetricsService
         return path.Contains("/performance", StringComparison.OrdinalIgnoreCase);
     }
 
+    // Linux: /proc/meminfo; Windows: GlobalMemoryStatusEx — best-effort.
     private static double? TryGetTotalPhysicalMemoryMb()
     {
         try

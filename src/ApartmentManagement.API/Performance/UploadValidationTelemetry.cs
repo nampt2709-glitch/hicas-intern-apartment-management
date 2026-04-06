@@ -2,6 +2,7 @@ using System.Threading;
 
 namespace ApartmentManagement.Performance;
 
+// Đếm toàn cục (singleton) số lần thử upload / thành công / thất bại — phục vụ log và tỷ lệ lỗi.
 public sealed class UploadValidationTelemetry
 {
     private long _attempts;

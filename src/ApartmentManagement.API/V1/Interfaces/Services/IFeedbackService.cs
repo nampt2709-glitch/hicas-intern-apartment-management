@@ -3,6 +3,7 @@ using ApartmentManagement.API.V1.DTOs.Feedbacks;
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Phản hồi: phân trang (theo quyền), cây/flatten, tạo/xóa/khôi phục.
 public interface IFeedbackService
 {
     Task<PagedResultDto<FeedbackReadDto>> GetPagedAsync(PaginationQueryDto query, Guid actingUserId, bool isAdmin, CancellationToken cancellationToken = default);

@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Dịch vụ quản lý người dùng: tạo/cập nhật/xóa tài khoản, phân quyền và ánh xạ sang DTO.
 public sealed class UserService : IUserService
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -20,6 +21,7 @@ public sealed class UserService : IUserService
     private readonly IUserRepository _repository;
     private readonly ApartmentDbContext _db;
 
+    // Khởi tạo dịch vụ người dùng với Identity, repository và DbContext.
     public UserService(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole<Guid>> roleManager,
@@ -36,6 +38,7 @@ public sealed class UserService : IUserService
         _db = db;
     }
 
+    // Tạo người dùng mới, đảm bảo email chưa dùng và gán các vai trò theo yêu cầu.
     public async Task<CurrentUserDto> CreateAsync(CreateUserRequestDto dto, CancellationToken cancellationToken = default)
     {
         var email = dto.Email.Trim();
@@ -80,6 +83,7 @@ public sealed class UserService : IUserService
         return await MapUserAsync(user, cancellationToken);
     }
 
+    // Lấy danh sách người dùng phân trang kèm vai trò.
     public async Task<PagedResultDto<CurrentUserDto>> GetPagedAsync(PaginationQueryDto query, CancellationToken cancellationToken = default)
     {
         var baseQuery = _repository.Query(true, query.IncludeDeleted);
@@ -102,6 +106,7 @@ public sealed class UserService : IUserService
         return dtos.ToPagedResult(query.PageNumber, query.PageSize, total);
     }
 
+    // Lấy thông tin người dùng theo Id.
     public async Task<CurrentUserDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(id.ToString())
@@ -109,6 +114,7 @@ public sealed class UserService : IUserService
         return await MapUserAsync(user, cancellationToken);
     }
 
+    // Cập nhật hồ sơ người dùng (quản trị), đồng bộ email và tên đăng nhập nếu đổi email.
     public async Task<CurrentUserDto> UpdateAsync(Guid id, CurrentUserDto dto, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(id.ToString())
@@ -139,6 +145,7 @@ public sealed class UserService : IUserService
         return await MapUserAsync(user, cancellationToken);
     }
 
+    // Người dùng tự cập nhật hồ sơ; có thể đổi mật khẩu khi cung cấp mật khẩu hiện tại.
     public async Task<CurrentUserDto> UpdateMeAsync(Guid userId, UpdateMyProfileDto dto, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(userId.ToString())
@@ -170,6 +177,7 @@ public sealed class UserService : IUserService
         return await MapUserAsync(user, cancellationToken);
     }
 
+    // Quản trị đặt lại mật khẩu cho người dùng bằng token reset của Identity.
     public async Task<AdminPasswordResetResultDto> AdminResetPasswordAsync(
         Guid userId,
         ResetUserPasswordDto dto,
@@ -189,6 +197,7 @@ public sealed class UserService : IUserService
         return new AdminPasswordResetResultDto { Reset = true };
     }
 
+    // Xóa mềm người dùng (đánh dấu IsDeleted).
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByIdAsync(id.ToString())
@@ -203,6 +212,7 @@ public sealed class UserService : IUserService
             throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => e.Description)));
     }
 
+    // Xóa vĩnh viễn người dùng và dữ liệu liên quan trong hệ thống Identity.
     public async Task PurgeUserAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var exists = await _db.Set<ApplicationUser>().IgnoreQueryFilters()
@@ -215,6 +225,7 @@ public sealed class UserService : IUserService
             throw new InvalidOperationException(string.Join("; ", identityResult.Errors.Select(e => e.Description)));
     }
 
+    // Ánh xạ <see cref="ApplicationUser"/> sang <see cref="CurrentUserDto"/> và nạp danh sách vai trò.
     private async Task<CurrentUserDto> MapUserAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         var dto = _mapper.Map<CurrentUserDto>(user);

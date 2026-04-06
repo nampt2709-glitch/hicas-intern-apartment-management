@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.IO;
@@ -34,12 +34,18 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-// Load secrets from repo-root or project .env (gitignored). Docker Compose injects env vars instead.
+// =============================================================================
+// Điểm vào ứng dụng ASP.NET Core: cấu hình DI, pipeline, JWT, rate limit, Swagger.
+// Luồng: đọc cấu hình → đăng ký dịch vụ → build app → migrate DB → middleware → MapControllers.
+// =============================================================================
+
+// nạp biến môi trường từ .env (repo root / thư mục chạy). Docker Compose có thể inject trực tiếp.
 DotEnvLoader.TryLoad();
 DotEnvLoader.TryLoad(AppContext.BaseDirectory);
 
 var builder = WebApplication.CreateBuilder(args);
 
+// kiểm tra chuỗi kết nối SQL Server bắt buộc (fail fast nếu thiếu cấu hình).
 var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(defaultConnection))
 {
@@ -47,6 +53,7 @@ if (string.IsNullOrWhiteSpace(defaultConnection))
         "ConnectionStrings:DefaultConnection is missing. Copy .env.example to .env at the repository root and set SA_PASSWORD / connection string (see README).");
 }
 
+// kiểm tra khóa JWT (tối thiểu 32 ký tự) để ký/verify token an toàn.
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"];
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
@@ -55,9 +62,10 @@ if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
         "Jwt:Key must be set and at least 32 characters. Set JWT__KEY in .env or User Secrets (see README).");
 }
 
+// cấu hình Serilog — tách log theo loại (Error / Activity / Security / Audit) vào file riêng, kèm CorrelationId.
 builder.Host.UseSerilog((context, services, cfg) =>
 {
-    // Prefer configured path (Docker: Logs__Path=/app/Logs matches volume). Fallback: next to published DLL.
+    // Đường dẫn thư mục log: ưu tiên cấu hình (Docker gắn volume), mặc định cạnh DLL đã publish.
     var logsPath = context.Configuration["Logs:Path"]?.Trim();
     if (string.IsNullOrEmpty(logsPath))
         logsPath = Path.Combine(AppContext.BaseDirectory, "Logs");
@@ -68,7 +76,7 @@ builder.Host.UseSerilog((context, services, cfg) =>
     cfg
         .MinimumLevel.Information()
         .Enrich.FromLogContext()
-        // Error.log: exceptions + invalid input (must include datetime, error name, details)
+        // chỉ ghi LogType=Error vào Error.log (exception, input sai).
         .WriteTo.Logger(lc => lc
             .Filter.ByIncludingOnly("LogType = 'Error'")
             .WriteTo.File(
@@ -76,7 +84,7 @@ builder.Host.UseSerilog((context, services, cfg) =>
                 rollingInterval: RollingInterval.Infinite,
                 outputTemplate: outputTemplate + "{NewLine}{Exception}")
         )
-        // Activity.log: every request/response for /api (success or failure)
+        // Activity.log — mọi request/response API (thành công hay lỗi).
         .WriteTo.Logger(lc => lc
             .Filter.ByIncludingOnly("LogType = 'Activity'")
             .WriteTo.File(
@@ -84,7 +92,7 @@ builder.Host.UseSerilog((context, services, cfg) =>
                 rollingInterval: RollingInterval.Infinite,
                 outputTemplate: outputTemplate)
         )
-        // Security.log: authentication-related actions
+        // Security.log — hành vi liên quan xác thực (đăng nhập, token...).
         .WriteTo.Logger(lc => lc
             .Filter.ByIncludingOnly("LogType = 'Security'")
             .WriteTo.File(
@@ -92,7 +100,7 @@ builder.Host.UseSerilog((context, services, cfg) =>
                 rollingInterval: RollingInterval.Infinite,
                 outputTemplate: outputTemplate)
         )
-        // Audit.log: successful CRUD/view actions only
+        // Audit.log — chỉ thao tác CRUD/xem thành công (phục vụ kiểm toán).
         .WriteTo.Logger(lc => lc
             .Filter.ByIncludingOnly("LogType = 'Audit'")
             .WriteTo.File(
@@ -102,6 +110,7 @@ builder.Host.UseSerilog((context, services, cfg) =>
         );
 });
 
+// đăng ký API Controllers và versioning (URL segment v1), explorer cho Swagger nhóm theo phiên bản.
 builder.Services.AddControllers();
 builder.Services.AddApiVersioning(options =>
     {
@@ -117,6 +126,7 @@ builder.Services.AddApiVersioning(options =>
         options.SubstituteApiVersionInUrl = false;
     });
 
+// chuẩn hóa phản hồi lỗi ModelState (validation tự động) thành JSON thống nhất + ghi log Error.
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
@@ -140,21 +150,26 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
         });
     };
 });
+// FluentValidation — tự chạy validator theo assembly chứa LoginRequestDtoValidator.
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestDtoValidator>();
 
+// bind cấu hình strongly-typed (JWT, upload, rate limit toàn cục).
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<UploadSettings>(builder.Configuration.GetSection("Upload"));
 builder.Services.Configure<RateLimitingOptions>(builder.Configuration.GetSection(RateLimitingOptions.SectionName));
 
+// HttpContext, cache bộ nhớ, giới hạn quota tùy chỉnh, metrics hiệu năng (singleton).
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<QuotaRateLimiter>();
 builder.Services.AddSingleton<PerformanceMetricsService>();
 
+// theo dõi request (scoped) và interceptor đếm lệnh SQL (scoped, gắn DbContext).
 builder.Services.AddScoped<RequestMetrics>();
 builder.Services.AddScoped<DbCommandCountingInterceptor>();
 
+// đăng ký EF Core + SQL Server + interceptor; tắt log dữ liệu nhạy cảm trong production.
 builder.Services.AddDbContext<ApartmentDbContext>((sp, options) =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -162,8 +177,10 @@ builder.Services.AddDbContext<ApartmentDbContext>((sp, options) =>
     options.EnableSensitiveDataLogging(false);
 });
 
+// tra cứu tồn tại entity (căn hộ, user...) phục vụ validator — scoped theo request.
 builder.Services.AddScoped<IReferenceEntityLookup, ReferenceEntityLookup>();
 
+// ASP.NET Identity — user/role, ràng buộc mật khẩu, lưu trữ qua ApartmentDbContext.
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     options.User.RequireUniqueEmail = true;
@@ -176,11 +193,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<ApartmentDbContext>()
 .AddDefaultTokenProviders();
 
+// đọc lại JwtSettings để cấu hình Bearer (khóa đối xứng ký JWT).
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
           ?? throw new InvalidOperationException("Jwt settings missing.");
 
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key));
 
+// xác thực JWT Bearer — validate issuer/audience/lifetime + kiểm tra token bị thu hồi.
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -206,6 +225,7 @@ builder.Services.AddAuthentication(options =>
 
     options.Events = new JwtBearerEvents
     {
+        // Sau khi token hợp lệ: kiểm tra blacklist thu hồi (logout toàn cục / revoke).
         OnTokenValidated = async context =>
         {
             var authHeader = context.Request.Headers.Authorization.ToString();
@@ -225,6 +245,7 @@ builder.Services.AddAuthentication(options =>
                 context.Fail("Token revoked.");
             }
         },
+        // Khi thiếu quyền: trả JSON 401 thống nhất + header chẩn đoán.
         OnChallenge = context =>
         {
             context.HandleResponse();
@@ -239,6 +260,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// mặc định mọi endpoint yêu cầu đăng nhập (trừ khi [AllowAnonymous]).
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -246,13 +268,15 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
+// 403 Forbidden trả JSON thay vì redirect/HTML (API-first).
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ForbiddenJsonAuthorizationMiddlewareResultHandler>();
 
+// ASP.NET Rate Limiter — các policy theo IP (auth, CRUD, upload ảnh/avatar).
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    // Basic auth policy used by AuthController attribute.
+    // Policy "auth": giới hạn endpoint đăng nhập theo IP (60/phút).
     options.AddPolicy("auth", context =>
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -267,7 +291,7 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // CRUD per IP (generic): 300 req/min/IP (use on write endpoints)
+    // Policy CRUD chung theo IP: 300 request/phút (dùng cho endpoint ghi).
     options.AddPolicy("crud-ip-300-per-min", context =>
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -282,7 +306,7 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // Apartment image upload: 20 file/min/IP
+    // Policy upload ảnh căn hộ: 20 file/phút/IP.
     options.AddPolicy("apartment-images-20-per-min-ip", context =>
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -297,7 +321,7 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // Upload avatar: 20 file/min/IP (account/hour limit handled by QuotaRateLimiter)
+    // Policy upload avatar: 20 file/phút/IP (quota theo tài khoản/giờ do QuotaRateLimiter xử lý thêm).
     options.AddPolicy("avatar-upload-20-per-min-ip", context =>
     {
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -313,6 +337,7 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// AutoMapper — cấu hình MappingProfile một lần, assert hợp lệ khi khởi động.
 builder.Services.AddSingleton<MapperConfiguration>(sp =>
 {
     var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
@@ -329,6 +354,7 @@ builder.Services.AddSingleton<MapperConfiguration>(sp =>
 builder.Services.AddSingleton<IMapper>(sp =>
     sp.GetRequiredService<MapperConfiguration>().CreateMapper());
 
+// cache hybrid (memory + distributed nếu có), thu hồi token, telemetry upload, quét malware heuristic.
 builder.Services.AddScoped<ICacheService, HybridCacheService>();
 builder.Services.AddSingleton<ITokenRevocationService, TokenRevocationService>();
 
@@ -336,6 +362,7 @@ builder.Services.AddSingleton<UploadValidationTelemetry>();
 builder.Services.AddScoped<IMalwareScanner, HeuristicMalwareScanner>();
 
 
+// đăng ký dịch vụ nghiệp vụ (scoped — mỗi request một instance).
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IUploadValidator, UploadValidatorService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -346,6 +373,7 @@ builder.Services.AddScoped<IUtilityServiceService, UtilityServiceService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
+// repository truy cập dữ liệu (scoped, dùng chung DbContext trong request).
 builder.Services.AddScoped<IApartmentRepository, ApartmentRepository>();
 builder.Services.AddScoped<IResidentRepository, ResidentRepository>();
 builder.Services.AddScoped<IUtilityServiceRepository, UtilityServiceRepository>();
@@ -354,19 +382,23 @@ builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
+// Swagger/OpenAPI + tùy chọn theo phiên bản API (ConfigureSwaggerOptions).
 builder.Services.AddSwaggerGen();
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 
 var app = builder.Build();
 
+// áp dụng migration EF Core có retry (chờ SQL Server sẵn sàng trong Docker).
 await DatabaseMigrator.ApplyMigrationsWithRetryAsync(app.Services);
 
-// Correlation id must be established as early as possible in the pipeline.
+// Khối pipeline HTTP (thứ tự quan trọng): CorrelationId sớm nhất để trace xuyên suốt.
 app.UseMiddleware<CorrelationIdMiddleware>();
+// thu thập metrics (thời gian/DB/cache), bắt exception toàn cục, đo thời gian phản hồi.
 app.UseMiddleware<PerformanceMetricsMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<ResponseTimingMiddleware>();
 
+// Swagger JSON + UI theo từng nhóm phiên bản API.
 app.UseSwagger();
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 app.UseSwaggerUI(options =>
@@ -376,14 +408,18 @@ app.UseSwaggerUI(options =>
     options.DisplayRequestDuration();
 });
 
+// rate limit built-in → xác thực JWT → quota tùy chỉnh → log activity/audit Serilog → phân quyền.
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<GlobalQuotaRateLimitMiddleware>();
 app.UseMiddleware<SerilogActivityAuditMiddleware>();
 app.UseAuthorization();
 
+// ánh xạ tất cả controller API (route theo attribute).
 app.MapControllers();
 
+// root redirect sang Swagger UI (anonymous, ẩn khỏi OpenAPI).
 app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous().ExcludeFromDescription();
 
+// chạy Kestrel — chặn thread cho đến khi host dừng.
 app.Run();

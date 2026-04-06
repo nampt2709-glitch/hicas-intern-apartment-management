@@ -11,6 +11,7 @@ using StackExchange.Redis;
 
 namespace ApartmentManagement.Infrastructure;
 
+// Cache lai: Redis (nếu cấu hình) với version theo scope + fallback IMemoryCache; gắn CacheInfo cho header chẩn đoán.
 public sealed class HybridCacheService : ICacheService, IDisposable
 {
     private static readonly TimeSpan RedisRetryDelay = TimeSpan.FromSeconds(15);
@@ -36,6 +37,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
 
     public async Task<T> GetOrCreateAsync<T>(string scopeKey, string cacheKey, Func<CancellationToken, Task<T>> factory, TimeSpan absoluteExpirationRelativeToNow, CancellationToken cancellationToken = default)
     {
+        // Key cache gồm version theo scope — InvalidateScope chỉ cần tăng version (không xóa từng key).
         var redis = await GetRedisAsync(cancellationToken);
         if (redis is not null)
         {
@@ -56,6 +58,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
             return created;
         }
 
+        // Version scope lưu trong ConcurrentDictionary khi không dùng Redis.
         var localVersion = _localVersions.TryGetValue(scopeKey, out var currentVersion) ? currentVersion : 0;
         var localKey = BuildVersionedKey(scopeKey, cacheKey, localVersion);
 
@@ -73,6 +76,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
 
     public async Task InvalidateScopeAsync(string scopeKey, CancellationToken cancellationToken = default)
     {
+        // Tăng version Redis hoặc local để vô hiệu toàn bộ key trong scope.
         var redis = await GetRedisAsync(cancellationToken);
         if (redis is not null)
         {
@@ -103,6 +107,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
 
     private async Task<ConnectionMultiplexer?> GetRedisAsync(CancellationToken cancellationToken)
     {
+        // Không có connection string thì bỏ qua Redis; có thể backoff sau lỗi kết nối.
         if (string.IsNullOrWhiteSpace(_redisConnectionString))
         {
             SetCacheInfo(CacheInfoDto.None);
@@ -119,6 +124,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
             return null;
         }
 
+        // Double-check locking: một luồng kết nối Redis, các luồng khác chờ semaphore.
         await _redisInitLock.WaitAsync(cancellationToken);
         try
         {
@@ -134,6 +140,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
 
             try
             {
+                // Timeout ngắn — fail nhanh sang memory; lên lịch probe lại sau RedisRetryDelay.
                 var options = ConfigurationOptions.Parse(_redisConnectionString);
                 options.AbortOnConnectFail = false;
                 options.ConnectRetry = 0;
@@ -186,6 +193,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
     private static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
     private static T Deserialize<T>(RedisValue value) => JsonSerializer.Deserialize<T>(value.ToString(), JsonOptions)!;
 
+    // Ghi nhớ hit/miss cache vào HttpContext.Items để middleware/header đọc được.
     private void SetCacheInfo(CacheInfoDto cacheInfo)
     {
         var httpContext = _httpContextAccessor.HttpContext;
@@ -195,6 +203,7 @@ public sealed class HybridCacheService : ICacheService, IDisposable
         httpContext.Items[CacheDiagnosticsKeys.HttpContextItemKey] = cacheInfo;
     }
 
+    // Giải phóng multiplexer Redis và khóa khởi tạo.
     public void Dispose()
     {
         _redis?.Dispose();

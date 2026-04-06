@@ -4,11 +4,12 @@ using Serilog;
 
 namespace ApartmentManagement.Middlewares;
 
+// Ghi Activity.log cho mọi API; Audit.log cho CRUD/view thành công (trừ auth); redact secret trong body JSON.
 public sealed class SerilogActivityAuditMiddleware
 {
     private readonly RequestDelegate _next;
 
-    /// <summary>Matches versioned routes such as /api/v1.0/auth/...</summary>
+    // True nếu path là API auth (ví dụ /api/v1.0/auth/...).
     private static bool IsAuthApiPath(string? path)
         => !string.IsNullOrEmpty(path)
            && path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
@@ -16,8 +17,7 @@ public sealed class SerilogActivityAuditMiddleware
 
     private static string RedactSecrets(string json)
     {
-        // Minimal redaction for common auth fields to avoid writing secrets into Audit.log.
-        // This is a best-effort string replacement (not a full JSON parser).
+        // Che password/token trong chuỗi JSON (regex đơn giản, không parse đầy đủ).
         if (string.IsNullOrWhiteSpace(json)) return json;
 
         var redacted = System.Text.RegularExpressions.Regex.Replace(
@@ -36,15 +36,13 @@ public sealed class SerilogActivityAuditMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Only audit API traffic
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
             await _next(context);
             return;
         }
 
-        // Capture request body snippet for audit (JSON only) to support "added/edited what".
-        // Keep overhead low by limiting the snippet length.
+        // Đọc snippet body JSON (POST/PUT/PATCH) tối đa ~800 ký tự; bỏ qua đường /auth.
         var contentType = context.Request.ContentType ?? string.Empty;
         var isJson = contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase);
         var shouldCaptureJsonBody = isJson
@@ -62,6 +60,7 @@ public sealed class SerilogActivityAuditMiddleware
             context.Request.Body.Position = 0;
         }
 
+        // Sau khi response hoàn tất: log Activity; nếu thành công và không phải auth — log Audit kèm body snippet.
         context.Response.OnCompleted(() =>
         {
             var status = context.Response.StatusCode;
@@ -86,11 +85,9 @@ public sealed class SerilogActivityAuditMiddleware
             if (!isSuccess)
                 return Task.CompletedTask;
 
-            // Audit: successful CRUD/view only (ignore failed responses)
             if (IsAuthApiPath(path))
                 return Task.CompletedTask;
 
-            // Audit: only successful CRUD/view from API resources (skip auth endpoints).
             if (!IsAuthApiPath(path) &&
                 (method is "GET" or "POST" or "PUT" or "DELETE"))
             {

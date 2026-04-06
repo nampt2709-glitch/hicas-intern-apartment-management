@@ -1,12 +1,14 @@
 using System.Diagnostics;
 namespace ApartmentManagement.Performance;
 
+// Theo dõi mỗi HTTP request: thời gian tổng (Stopwatch), số query DB và tổng ms thực thi SQL.
 public sealed class RequestMetrics
 {
     private long _dbQueryCount;
     private long _dbQueryElapsedMilliseconds;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
+    // Reset đầu pipeline (ResponseTimingMiddleware) cho request mới.
     public void Reset()
     {
         Interlocked.Exchange(ref _dbQueryCount, 0);

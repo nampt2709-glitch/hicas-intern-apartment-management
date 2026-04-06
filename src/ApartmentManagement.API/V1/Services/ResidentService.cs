@@ -9,19 +9,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Dịch vụ quản lý cư dân (hồ sơ liên kết tài khoản) và truy vấn “của tôi”.
 public sealed class ResidentService : CrudServiceBase<Resident, ResidentReadDto, ResidentCreateDto, ResidentUpdateDto>, IResidentService
 {
     private readonly IResidentRepository _repository;
 
+    // Khởi tạo với repository cư dân.
     public ResidentService(IMapper mapper, ICacheService cache, IResidentRepository repository)
         : base(mapper, cache, repository)
     {
         _repository = repository;
     }
 
+    // Truy vấn đọc từ repository cư dân.
     protected override IQueryable<Resident> BuildReadQuery(bool includeDeleted)
         => _repository.Query(true, includeDeleted);
 
+    // Tìm theo họ tên, số điện thoại, email và sắp theo name/phone hoặc ngày tạo.
     protected override IQueryable<Resident> ApplySearchAndSort(IQueryable<Resident> query, PaginationQueryDto paging)
     {
         if (!string.IsNullOrWhiteSpace(paging.Search))
@@ -42,6 +46,7 @@ public sealed class ResidentService : CrudServiceBase<Resident, ResidentReadDto,
         };
     }
 
+    // Lấy hồ sơ cư dân gắn với user đăng nhập.
     public async Task<ResidentReadDto> GetMineForUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var entity = await BuildReadQuery(false).FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken)

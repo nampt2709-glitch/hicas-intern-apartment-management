@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
+// Mục đích file: API upload file — avatar người dùng (multipart), đồng bộ đường dẫn vào hồ sơ user; có quota và rate limit IP.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller upload — kế thừa ApiControllerBase; phối hợp validator lưu file, Auth/User service cập nhật avatar.
 public sealed class UploadsController : ApiControllerBase
 {
     private readonly IUploadValidator _uploadValidator;
@@ -13,6 +16,7 @@ public sealed class UploadsController : ApiControllerBase
     private readonly IUserService _userService;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: IUploadValidator (validate + lưu avatar), IAuthService (đọc user hiện tại), IUserService (cập nhật AvatarPath), QuotaRateLimiter.
     public UploadsController(IUploadValidator uploadValidator, IAuthService authService, IUserService userService, QuotaRateLimiter quota)
     {
         _uploadValidator = uploadValidator;
@@ -21,6 +25,7 @@ public sealed class UploadsController : ApiControllerBase
         _quota = quota;
     }
 
+    // POST upload avatar — kiểm tra userId, quota theo tài khoản, validate file, lưu và cập nhật CurrentUserDto.AvatarPath.
     [HttpPost("avatar")]
     [Authorize(Roles = "User,Admin")]
     [EnableRateLimiting("avatar-upload-20-per-min-ip")]

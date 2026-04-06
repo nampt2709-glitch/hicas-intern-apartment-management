@@ -3,6 +3,7 @@ using ApartmentManagement.API.V1.DTOs.Services;
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Dịch vụ nghiệp vụ: tiện ích (điện, nước...) — phân trang, CRUD, khôi phục sau soft-delete.
 public interface IUtilityServiceService
 {
     Task<PagedResultDto<UtilityServiceReadDto>> GetPagedAsync(PaginationQueryDto query, CancellationToken cancellationToken = default);

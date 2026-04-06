@@ -2,9 +2,7 @@ using Serilog.Context;
 
 namespace ApartmentManagement.Middlewares;
 
-/// <summary>
-/// Ensures every request has a stable correlation id and flows it into logs and response headers.
-/// </summary>
+// Gắn CorrelationId ổn định cho mỗi request, đưa vào log Serilog và header phản hồi.
 public sealed class CorrelationIdMiddleware
 {
     public const string HeaderName = "X-Correlation-Id";
@@ -19,28 +17,29 @@ public sealed class CorrelationIdMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Prefer client-supplied correlation id; otherwise fall back to TraceIdentifier or a new GUID.
+        // Ưu tiên header client; không có thì dùng TraceIdentifier hoặc GUID mới.
         var correlationId = GetOrCreateCorrelationId(context);
 
-        // Keep ASP.NET trace id aligned with correlation id for consistent diagnostics.
+        // Đồng bộ TraceIdentifier với correlation để diagnostic nhất quán.
         context.TraceIdentifier = correlationId;
 
-        // Expose correlation id on HttpContext for downstream handlers.
+        // Lưu vào Items cho handler/middleware sau.
         context.Items[ItemKey] = correlationId;
-        // Ensure the header is present even if later middleware clears/rebuilds the response.
+        // Đảm bảo header có trên response khi bắt đầu gửi (tránh mất sau khi middleware khác xử lý).
         context.Response.OnStarting(() =>
         {
             context.Response.Headers[HeaderName] = correlationId;
             return Task.CompletedTask;
         });
 
-        // Enrich Serilog scope so all logs for this request carry the correlation id property.
+        // Mọi log trong scope request đều có property CorrelationId.
         using (LogContext.PushProperty("CorrelationId", correlationId))
         {
             await _next(context);
         }
     }
 
+    // Đọc header → fallback trace → GUID.
     private static string GetOrCreateCorrelationId(HttpContext context)
     {
         if (context.Request.Headers.TryGetValue(HeaderName, out var existing) &&

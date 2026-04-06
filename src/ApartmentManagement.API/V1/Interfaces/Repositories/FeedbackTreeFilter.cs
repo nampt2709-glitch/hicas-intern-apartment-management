@@ -1,9 +1,7 @@
 ﻿namespace ApartmentManagement.API.V1.Interfaces.Repositories;
 
-/// <param name="AllRootThreads">True: all top-level threads; false: subtree from <see cref="ScopeRootId"/>.</param>
-/// <param name="ScopeRootId">Anchor feedback id when <see cref="AllRootThreads"/> is false.</param>
-/// <param name="RestrictToActingUserOnly">When listing all roots, limit to threads owned by <see cref="ActingUserId"/>.</param>
-/// <param name="ActingUserId">Current user for ownership filter.</param>
+// Bộ lọc tải cây phản hồi: AllRootThreads = true: mọi luồng gốc; false: cây con từ ScopeRootId.
+// RestrictToActingUserOnly: khi liệt kê gốc, chỉ luồng do ActingUserId tạo.
 public readonly record struct FeedbackTreeFilter(
     bool AllRootThreads,
     Guid ScopeRootId,

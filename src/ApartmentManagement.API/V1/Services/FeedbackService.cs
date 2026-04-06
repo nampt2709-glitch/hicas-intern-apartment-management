@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Dịch vụ phản hồi: phân trang theo vai trò, cây hội thoại, tạo và kiểm tra quyền tham chiếu căn hộ/hóa đơn.
 public sealed class FeedbackService
     : CrudServiceBase<Feedback, FeedbackReadDto, FeedbackCreateDto, FeedbackCreateDto>,
       IFeedbackService
@@ -17,6 +18,7 @@ public sealed class FeedbackService
     private readonly IResidentRepository _residentRepository;
     private readonly IInvoiceRepository _invoiceRepository;
 
+    // Khởi tạo với repository phản hồi, cư dân và hóa đơn (kiểm tra tham chiếu).
     public FeedbackService(
         IMapper mapper,
         ICacheService cache,
@@ -30,10 +32,12 @@ public sealed class FeedbackService
         _invoiceRepository = invoiceRepository;
     }
 
+    // Truy vấn phản hồi kèm thông tin người dùng.
     protected override IQueryable<Feedback> BuildReadQuery(bool includeDeleted)
         => _feedbackRepository.Query(asNoTracking: true, includeDeleted: includeDeleted)
             .Include(x => x.User);
 
+    // Lọc nội dung và sắp theo path hoặc thời gian tạo.
     protected override IQueryable<Feedback> ApplySearchAndSort(IQueryable<Feedback> query, PaginationQueryDto paging)
     {
         if (!string.IsNullOrWhiteSpace(paging.Search))
@@ -49,6 +53,7 @@ public sealed class FeedbackService
         };
     }
 
+    // Phân trang phản hồi; user thường chỉ thấy gốc của chính họ, admin thấy theo bộ lọc.
     public async Task<PagedResultDto<FeedbackReadDto>> GetPagedAsync(
         PaginationQueryDto query,
         Guid actingUserId,
@@ -72,6 +77,7 @@ public sealed class FeedbackService
         }, CacheDuration, cancellationToken);
     }
 
+    // Phân trang các bài đăng của một user cụ thể.
     public async Task<PagedResultDto<FeedbackReadDto>> GetMyPostsPagedAsync(
         PaginationQueryDto query,
         Guid userId,
@@ -91,6 +97,7 @@ public sealed class FeedbackService
         }, CacheDuration, cancellationToken);
     }
 
+    // Tạo phản hồi hoặc trả lời; kiểm tra quyền tham chiếu và quyền trong luồng hội thoại.
     public async Task<FeedbackReadDto> CreateAsync(
         FeedbackCreateDto dto,
         Guid userId,
@@ -151,6 +158,7 @@ public sealed class FeedbackService
         return Mapper.Map<FeedbackReadDto>(withUser);
     }
 
+    // Lấy cây phản hồi (cache); user thường chỉ được xem luồng của mình khi chỉ định gốc.
     public Task<FeedbackTreeNodeDto> GetTreeAsync(
         Guid? rootFeedbackId,
         Guid actingUserId,
@@ -173,6 +181,7 @@ public sealed class FeedbackService
             cancellationToken);
     }
 
+    // Tải cây sau khi xác minh user là chủ luồng gốc.
     private async Task<FeedbackTreeNodeDto> GetTreeWithAccessCheckAsync(
         Guid rootFeedbackId,
         Guid actingUserId,
@@ -195,6 +204,7 @@ public sealed class FeedbackService
             cancellationToken);
     }
 
+    // Ghép danh sách phẳng từ DB thành cây nút con.
     private static FeedbackTreeNodeDto BuildTreeFromRows(List<FeedbackTreeRowDto> rows)
     {
         var lookup = rows.ToDictionary(x => x.Id, x => new FeedbackTreeNodeDto
@@ -233,6 +243,7 @@ public sealed class FeedbackService
         };
     }
 
+    // Trả về danh sách phẳng các nút trong cây (có kiểm tra quyền tương tự GetTree).
     public async Task<IReadOnlyList<FeedbackFlatDto>> GetFlattenedAsync(
         Guid? rootFeedbackId,
         Guid actingUserId,
@@ -258,6 +269,7 @@ public sealed class FeedbackService
         }).ToList();
     }
 
+    // Xóa mềm phản hồi; user chỉ xóa được bài của mình trừ khi là admin.
     public async Task DeleteAsync(Guid id, Guid actingUserId, bool isAdmin, CancellationToken cancellationToken = default)
     {
         var entity = await Repository.GetByIdAsync(id, asNoTracking: false, includeDeleted: false, cancellationToken: cancellationToken)
@@ -271,6 +283,7 @@ public sealed class FeedbackService
         await InvalidateCacheAsync(cancellationToken);
     }
 
+    // Tìm bản ghi gốc của luồng từ path phân cấp.
     private async Task<Feedback> GetThreadRootAsync(Guid feedbackId, CancellationToken cancellationToken)
     {
         var current = await Repository.GetByIdAsync(feedbackId, asNoTracking: true, includeDeleted: false, cancellationToken)
@@ -283,6 +296,7 @@ public sealed class FeedbackService
                ?? throw new KeyNotFoundException("Feedback not found.");
     }
 
+    // Trích Id phản hồi gốc từ phần đầu chuỗi path.
     private static Guid ParseRootFeedbackIdFromPath(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -293,6 +307,7 @@ public sealed class FeedbackService
         return rootId;
     }
 
+    // Gọi repository trả về các dòng CTE đã sắp theo path.
     private Task<List<FeedbackTreeRowDto>> LoadTreeRowsAsync(
         Guid? rootFeedbackId,
         Guid actingUserId,

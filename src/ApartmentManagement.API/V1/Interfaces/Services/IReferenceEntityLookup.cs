@@ -1,6 +1,6 @@
 ﻿namespace ApartmentManagement.API.V1.Interfaces.Services;
 
-/// <summary>Referenced-entity checks and business-level uniqueness (replacing DB-only unique indexes where applicable).</summary>
+// Tra cứu thực thể và ràng buộc nghiệp vụ (trùng số căn, tháng hóa đơn, gán cư dân...) cho validator/service.
 public interface IReferenceEntityLookup
 {
     Task<bool> ApartmentExistsAsync(Guid id, CancellationToken cancellationToken = default);
@@ -9,23 +9,21 @@ public interface IReferenceEntityLookup
     Task<bool> InvoiceExistsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> FeedbackExistsAsync(Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Another non-deleted apartment already uses this number (trimmed).</summary>
+    // Căn hộ khác (chưa xóa) đã dùng số căn này (đã trim).
     Task<bool> IsApartmentNumberInUseAsync(string apartmentNumber, Guid? excludeApartmentId, CancellationToken cancellationToken = default);
 
-    /// <summary>Another utility already has this name (trimmed, case-insensitive).</summary>
+    // Tiện ích khác đã có tên này (trim, không phân biệt hoa thường).
     Task<bool> IsUtilityServiceNameInUseAsync(string serviceName, Guid? excludeUtilityServiceId, CancellationToken cancellationToken = default);
 
-    /// <summary>Invoice for same apartment and calendar billing month already exists.</summary>
+    // Đã có hóa đơn cho cùng căn và cùng tháng thanh toán (lịch).
     Task<bool> InvoiceExistsForApartmentAndBillingMonthAsync(
         Guid apartmentId,
         DateOnly billingMonth,
         Guid? excludeInvoiceId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// True if assignment conflicts: duplicate (apartment,user) when user is set; duplicate user on another resident;
-    /// when user is null, duplicate (apartment, phone) for residents without linked user.
-    /// </summary>
+    // True nếu xung đột gán: trùng (căn,user) khi có user; hoặc user đã gắn cư dân khác;
+    // khi không có user, trùng (căn, SĐT) cho cư dân khách không tài khoản.
     Task<bool> ResidentAssignmentConflictsAsync(
         Guid apartmentId,
         Guid? userId,
@@ -33,6 +31,6 @@ public interface IReferenceEntityLookup
         Guid? excludeResidentId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Normalized email is not taken by another non-deleted user.</summary>
+    // Email chuẩn hóa chưa bị người dùng khác (chưa xóa) sử dụng.
     Task<bool> IsEmailAvailableForAnotherUserAsync(string email, Guid? excludeUserId, CancellationToken cancellationToken = default);
 }

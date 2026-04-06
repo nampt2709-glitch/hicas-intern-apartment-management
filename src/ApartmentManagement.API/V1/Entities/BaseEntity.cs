@@ -2,6 +2,7 @@
 
 namespace ApartmentManagement.API.V1.Entities;
 
+// Lớp cơ sở cho hầu hết thực thể nghiệp vụ: khóa chính, audit và xoá mềm (không có navigation EF ở đây).
 public abstract class BaseEntity : ISoftDeletable
 {
     public Guid Id { get; set; } = Guid.NewGuid();

@@ -1,6 +1,6 @@
 ﻿namespace ApartmentManagement.API.V1.Validators;
 
-/// <summary>Keys for <see cref="FluentValidation.ValidationContext{T}.RootContextData"/> on PUT validators.</summary>
+// Khóa truyền qua RootContextData của FluentValidation (validator PUT) để biết id tuyến đường / thực thể đang sửa.
 public static class ValidationContextKeys
 {
     public const string ApartmentId = nameof(ApartmentId);

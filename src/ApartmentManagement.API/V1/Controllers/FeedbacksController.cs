@@ -7,14 +7,18 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+// Mục đích file: REST API phản hồi/góp ý — danh sách, cây, phẳng hóa, tạo/xóa/khôi phục; phân quyền User/Admin và quota.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller phản hồi — kế thừa ApiControllerBase; dùng userId + IsInRole("Admin") để lọc dữ liệu.
 public sealed class FeedbacksController : ApiControllerBase
 {
     private readonly IFeedbackService _service;
     private readonly IValidator<FeedbackCreateDto> _createValidator;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: IFeedbackService, validator tạo phản hồi, QuotaRateLimiter (tree/flattened/create/delete/restore).
     public FeedbacksController(IFeedbackService service, IValidator<FeedbackCreateDto> createValidator, QuotaRateLimiter quota)
     {
         _service = service;
@@ -22,21 +26,25 @@ public sealed class FeedbacksController : ApiControllerBase
         _quota = quota;
     }
 
+    // GET danh sách phản hồi phân trang — Admin thấy rộng, User chỉ phần được phép (theo service).
     [HttpGet]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetPagedAsync(query, GetUserId(), User.IsInRole("Admin"), cancellationToken), "Feedbacks retrieved.");
 
+    // GET các phản hồi do chính user đăng (phân trang).
     [HttpGet("me")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetMine([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetMyPostsPagedAsync(query, GetUserId(), cancellationToken), "Your feedbacks retrieved.");
 
+    // GET chi tiết một phản hồi theo id (chỉ Admin).
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => ApiOk(await _service.GetByIdAsync(id, cancellationToken: cancellationToken), "Feedback retrieved.");
 
+    // GET cây phản hồi (tùy root) — User không phải Admin bị giới hạn tần suất; Admin không áp quota này.
     [HttpGet("tree")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Tree([FromQuery] Guid? rootFeedbackId, CancellationToken cancellationToken)
@@ -51,6 +59,7 @@ public sealed class FeedbacksController : ApiControllerBase
         return ApiOk(await _service.GetTreeAsync(rootFeedbackId, userId, User.IsInRole("Admin"), cancellationToken), "Feedback tree retrieved.");
     }
 
+    // GET danh sách phẳng (flatten) từ cây — quota tương tự Tree cho User.
     [HttpGet("flattened")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Flattened([FromQuery] Guid? rootFeedbackId, CancellationToken cancellationToken)
@@ -65,6 +74,7 @@ public sealed class FeedbacksController : ApiControllerBase
         return ApiOk(await _service.GetFlattenedAsync(rootFeedbackId, userId, User.IsInRole("Admin"), cancellationToken), "Feedback tree flattened.");
     }
 
+    // POST tạo phản hồi/bình luận — User bị quota theo phút; Admin không chặn bởi nhánh này.
     [HttpPost]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Create([FromBody] FeedbackCreateDto dto, CancellationToken cancellationToken)
@@ -82,6 +92,7 @@ public sealed class FeedbacksController : ApiControllerBase
         return ApiCreated(await _service.CreateAsync(dto, userId, User.IsInRole("Admin"), cancellationToken), "Feedback created.");
     }
 
+    // DELETE xóa phản hồi — User có quota theo giờ; Admin không qua nhánh quota User.
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
@@ -98,6 +109,7 @@ public sealed class FeedbacksController : ApiControllerBase
         return ApiDeleted("Feedback deleted.");
     }
 
+    // POST khôi phục phản hồi đã xóa mềm (chỉ Admin) — quota theo admin.
     [HttpPost("{id:guid}/restore")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Restore(Guid id, CancellationToken cancellationToken)

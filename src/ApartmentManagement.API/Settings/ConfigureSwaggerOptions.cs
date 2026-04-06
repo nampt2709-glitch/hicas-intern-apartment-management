@@ -5,7 +5,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace ApartmentManagement.Settings;
 
-
+// Cấu hình Swagger: một tài liệu mỗi nhóm phiên bản API + security scheme Bearer JWT.
 public sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
 {
     private readonly IApiVersionDescriptionProvider _provider;
@@ -17,6 +17,7 @@ public sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOption
 
     public void Configure(SwaggerGenOptions options)
     {
+        // SwaggerDoc theo từng ApiVersionDescription từ ApiExplorer.
         foreach (var description in _provider.ApiVersionDescriptions)
         {
             options.SwaggerDoc(description.GroupName, new OpenApiInfo
@@ -27,6 +28,7 @@ public sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOption
             });
         }
 
+        // nút Authorize trong UI — header Authorization: Bearer <JWT>.
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
             Name = "Authorization",
@@ -37,6 +39,7 @@ public sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOption
             Description = "Enter JWT token"
         });
 
+        // Áp security requirement mặc định cho mọi operation (client gửi JWT).
         options.AddSecurityRequirement(new OpenApiSecurityRequirement
         {
             {

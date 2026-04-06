@@ -2,6 +2,7 @@ using ApartmentManagement.Performance;
 
 namespace ApartmentManagement.Middlewares;
 
+// Reset RequestMetrics mỗi request; khi response bắt đầu — áp dụng header thời gian + DB + cache.
 public sealed class ResponseTimingMiddleware
 {
     private readonly RequestDelegate _next;

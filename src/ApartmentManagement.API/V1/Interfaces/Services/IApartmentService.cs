@@ -3,6 +3,7 @@ using ApartmentManagement.API.V1.DTOs.Common;
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Căn hộ: phân trang, căn “của tôi”, CRUD, khôi phục, gắn ảnh sau khi upload.
 public interface IApartmentService
 {
     Task<PagedResultDto<ApartmentReadDto>> GetPagedAsync(PaginationQueryDto query, CancellationToken cancellationToken = default);
@@ -13,6 +14,6 @@ public interface IApartmentService
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task RestoreAsync(Guid id, CancellationToken cancellationToken = default);
 
-    /// <summary>Persists apartment image row and optional first cover path after file was saved to disk.</summary>
+    // Lưu bản ghi ảnh căn hộ và tùy chọn đặt ảnh bìa lần đầu sau khi file đã lưu trên đĩa.
     Task AttachUploadedImageAsync(Guid apartmentId, string storedFilePath, string originalFileName, string mimeType, CancellationToken cancellationToken = default);
 }

@@ -6,9 +6,7 @@ using Microsoft.AspNetCore.Authorization.Policy;
 
 namespace ApartmentManagement.Middlewares;
 
-/// <summary>
-/// When the user is authenticated but fails authorization (e.g. wrong role), return JSON instead of an empty 403 body.
-/// </summary>
+// Khi đã đăng nhập nhưng không đủ quyền (sai role): trả JSON 403 có message thay vì body trống.
 public sealed class ForbiddenJsonAuthorizationMiddlewareResultHandler : IAuthorizationMiddlewareResultHandler
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -25,12 +23,14 @@ public sealed class ForbiddenJsonAuthorizationMiddlewareResultHandler : IAuthori
         AuthorizationPolicy? policy,
         PolicyAuthorizationResult authorizeResult)
     {
+        // Thành công: ủy quyền handler mặc định của ASP.NET Core.
         if (authorizeResult.Succeeded)
         {
             await _defaultHandler.HandleAsync(next, context, policy!, authorizeResult);
             return;
         }
 
+        // Forbidden + chưa ghi response: trả JSON có gợi ý role cần (nếu suy ra được).
         if (authorizeResult.Forbidden && !context.Response.HasStarted)
         {
             var roleHint = TryFormatRoleHint(authorizeResult.AuthorizationFailure);
@@ -54,9 +54,11 @@ public sealed class ForbiddenJsonAuthorizationMiddlewareResultHandler : IAuthori
             return;
         }
 
+        // Các trường hợp khác (401, challenge...) — xử lý theo mặc định.
         await _defaultHandler.HandleAsync(next, context, policy!, authorizeResult);
     }
 
+    // Trích danh sách role từ RolesAuthorizationRequirement để hiển thị trong message.
     private static string? TryFormatRoleHint(AuthorizationFailure? failure)
     {
         if (failure?.FailedRequirements == null)

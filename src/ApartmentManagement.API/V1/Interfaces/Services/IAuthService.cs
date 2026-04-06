@@ -2,6 +2,7 @@
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Xác thực: đăng ký, đăng nhập, làm mới token, đăng xuất, quên/đặt lại mật khẩu.
 public interface IAuthService
 {
     Task<AuthResultDto> RegisterAsync(RegisterRequestDto dto, CancellationToken cancellationToken = default);

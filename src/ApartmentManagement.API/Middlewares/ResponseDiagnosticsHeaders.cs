@@ -6,9 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ApartmentManagement.Middlewares;
 
-/// <summary>
-/// Benchmark / performance diagnostics exposed as response headers (not JSON body).
-/// </summary>
+// Chẩn đoán hiệu năng qua header phản hồi (không đụng vào JSON body).
 public static class ResponseDiagnosticsHeaders
 {
     public const string DurationMs = "X-Response-Time-Ms";
@@ -18,13 +16,14 @@ public static class ResponseDiagnosticsHeaders
     public const string CacheHit = "X-Cache-Hit";
     public const string CacheStatus = "X-Cache-Status";
 
-    /// <summary>Rolling-window server snapshot (same fields as GET /performance JSON except fail rate and requests-in-window).</summary>
+    // Tên header: snapshot máy chủ cửa sổ lăn (cùng ý với GET /performance, trừ vài chỉ số).
     public const string ServerCpuPercent = "X-Server-Cpu-Percent";
     public const string ServerMemoryUsedMb = "X-Server-Memory-Used-Mb";
     public const string ServerTotalMemoryMb = "X-Server-Total-Memory-Mb";
     public const string ServerThroughputRps = "X-Server-Throughput-Rps";
     public const string ServerAvgLatencyMs = "X-Server-Avg-Latency-Ms";
 
+    // Gắn thời gian request, số query DB, thời gian query, trạng thái cache từ RequestMetrics + ICacheService.
     public static void Apply(HttpContext context)
     {
         var metrics = context.RequestServices.GetRequiredService<RequestMetrics>();
@@ -39,6 +38,7 @@ public static class ResponseDiagnosticsHeaders
         headers[CacheStatus] = cacheInfo.Status;
     }
 
+    // Snapshot rolling window (CPU, RAM, throughput, latency) — bỏ qua route /performance tránh vòng lặp.
     public static void ApplyPerformanceSnapshot(HttpContext context, PerformanceMetricsService metrics)
     {
         ArgumentNullException.ThrowIfNull(context);

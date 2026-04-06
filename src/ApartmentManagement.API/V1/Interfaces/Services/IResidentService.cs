@@ -3,6 +3,7 @@ using ApartmentManagement.API.V1.DTOs.Residents;
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Quản lý cư dân: phân trang, bản ghi “của tôi”, CRUD, khôi phục.
 public interface IResidentService
 {
     Task<PagedResultDto<ResidentReadDto>> GetPagedAsync(PaginationQueryDto query, CancellationToken cancellationToken = default);

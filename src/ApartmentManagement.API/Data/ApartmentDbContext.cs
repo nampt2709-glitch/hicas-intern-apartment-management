@@ -7,12 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.Data;
 
+// DbContext trung tâm: kế thừa Identity (user/role) + các bảng nghiệp vụ (căn hộ, hóa đơn, phản hồi...).
+// Luồng: OnModelCreating → cấu hình Identity → miền nghiệp vụ → bộ lọc soft-delete toàn cục.
 public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.AspNetCore.Identity.IdentityRole<Guid>, Guid>
 {
     public ApartmentDbContext(DbContextOptions<ApartmentDbContext> options) : base(options)
     {
     }
 
+    // DbSet: truy cập tập thực thể được map sang bảng SQL Server.
     public DbSet<Apartment> Apartments => Set<Apartment>();
     public DbSet<ApartmentImage> ApartmentImages => Set<ApartmentImage>();
     public DbSet<Resident> Residents => Set<Resident>();
@@ -26,13 +29,17 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
     {
         base.OnModelCreating(builder);
 
+        // cấu hình bảng Identity (ApplicationUser, RefreshToken) và quan hệ FK.
         ConfigureIdentity(builder);
+        // cấu hình bảng miền (Apartment, Invoice, Feedback...) — chỉ mục, độ dài, precision.
         ConfigureDomain(builder);
+        // áp query filter IsDeleted=false cho mọi entity ISoftDeletable.
         ApplySoftDeleteFilters(builder);
     }
 
     private static void ConfigureIdentity(ModelBuilder builder)
     {
+        // mapping ApplicationUser — mở rộng thuộc tính, quan hệ 1-n với RefreshToken và Feedback.
         builder.Entity<ApplicationUser>(entity =>
         {
             entity.Property(x => x.FullName).HasMaxLength(200).IsRequired();
@@ -49,6 +56,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // mapping RefreshToken — hash token, unique index, FK tới User.
         builder.Entity<RefreshToken>(entity =>
         {
             entity.HasKey(x => x.Id);
@@ -63,6 +71,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
 
     private static void ConfigureDomain(ModelBuilder builder)
     {
+        // Căn hộ — số căn unique, quan hệ ảnh, cư dân, hóa đơn, phản hồi tham chiếu.
         builder.Entity<Apartment>(entity =>
         {
             entity.ToTable("Apartments");
@@ -95,6 +104,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // Ảnh căn hộ — unique (ApartmentId, SortOrder).
         builder.Entity<ApartmentImage>(entity =>
         {
             entity.ToTable("ApartmentImages");
@@ -105,6 +115,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
             entity.HasIndex(x => new { x.ApartmentId, x.SortOrder }).IsUnique();
         });
 
+        // Cư dân — liên kết tài khoản (0-1) hoặc chỉ SĐT; ràng buộc unique theo quy tắc filter.
         builder.Entity<Resident>(entity =>
         {
             entity.ToTable("Residents");
@@ -123,6 +134,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
             entity.HasIndex(x => new { x.ApartmentId, x.PhoneNumber }).IsUnique().HasFilter("[UserId] IS NULL");
         });
 
+        // Dịch vụ tiện ích (đơn giá, đơn vị) — tên dịch vụ unique.
         builder.Entity<UtilityService>(entity =>
         {
             entity.ToTable("UtilityServices");
@@ -132,6 +144,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
             entity.HasIndex(x => x.ServiceName).IsUnique();
         });
 
+        // Hóa đơn theo căn hộ + tháng thanh toán — unique (ApartmentId, BillingMonth).
         builder.Entity<Invoice>(entity =>
         {
             entity.ToTable("Invoices");
@@ -151,6 +164,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // Chi tiết hóa đơn — mỗi dịch vụ một dòng trên hóa đơn (unique theo cặp Invoice+Utility).
         builder.Entity<InvoiceDetail>(entity =>
         {
             entity.ToTable("InvoiceDetails");
@@ -167,6 +181,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // Phản hồi dạng cây (materialized path), tham chiếu căn hộ/hóa đơn tùy chọn.
         builder.Entity<Feedback>(entity =>
         {
             entity.ToTable("Feedbacks");
@@ -188,6 +203,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
 
     private static void ApplySoftDeleteFilters(ModelBuilder builder)
     {
+        // Duyệt mọi CLR type trong model; nếu implement ISoftDeletable thì gọi generic ApplySoftDeleteFilter.
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (!typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
@@ -200,6 +216,7 @@ public class ApartmentDbContext : IdentityDbContext<ApplicationUser, Microsoft.A
         }
     }
 
+    // Áp bộ lọc truy vấn mặc định: ẩn bản ghi đã xóa mềm (IsDeleted=true).
     private static void ApplySoftDeleteFilter<TEntity>(ModelBuilder builder) where TEntity : class, ISoftDeletable
         => builder.Entity<TEntity>().HasQueryFilter(e => !e.IsDeleted);
 }

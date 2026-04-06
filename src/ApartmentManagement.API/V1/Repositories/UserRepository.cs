@@ -6,15 +6,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Repositories;
 
+// Repository truy vấn người dùng Identity và vai trò theo danh sách Id.
 public sealed class UserRepository : IUserRepository
 {
     private readonly ApartmentDbContext _db;
 
+    // Khởi tạo với DbContext ứng dụng.
     public UserRepository(ApartmentDbContext db)
     {
         _db = db;
     }
 
+    // Truy vấn <see cref="ApplicationUser"/>; có thể bỏ qua global filter khi cần bản đã xóa.
     public IQueryable<ApplicationUser> Query(bool asNoTracking = true, bool includeDeleted = false)
     {
         IQueryable<ApplicationUser> query = _db.Set<ApplicationUser>();
@@ -31,9 +34,11 @@ public sealed class UserRepository : IUserRepository
         return query;
     }
 
+    // Lưu thay đổi xuống cơ sở dữ liệu.
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         => _db.SaveChangesAsync(cancellationToken);
 
+    // Lấy map userId → danh tên vai trò cho một tập Id (tránh N+1 khi phân trang).
     public async Task<Dictionary<Guid, List<string>>> GetRoleNamesByUserIdsAsync(
         IReadOnlyList<Guid> userIds,
         CancellationToken cancellationToken = default)

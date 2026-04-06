@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Dịch vụ xác thực: đăng ký, đăng nhập, làm mới token, đăng xuất và đặt lại mật khẩu.
 public sealed class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -15,6 +16,7 @@ public sealed class AuthService : IAuthService
     private readonly ITokenService _tokenService;
     private readonly ITokenRevocationService _revocationService;
 
+    // Khởi tạo dịch vụ xác thực với Identity, repository refresh token và dịch vụ token.
     public AuthService(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole<Guid>> roleManager,
@@ -31,6 +33,7 @@ public sealed class AuthService : IAuthService
         _revocationService = revocationService;
     }
 
+    // Đăng ký tài khoản mới với vai trò mặc định User và trả về cặp token.
     public async Task<AuthResultDto> RegisterAsync(RegisterRequestDto dto, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -62,6 +65,7 @@ public sealed class AuthService : IAuthService
         return await IssueAuthResultAsync(user, cancellationToken);
     }
 
+    // Đăng nhập bằng email/mật khẩu và phát hành token.
     public async Task<AuthResultDto> LoginAsync(LoginRequestDto dto, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -74,6 +78,7 @@ public sealed class AuthService : IAuthService
         return await IssueAuthResultAsync(user, cancellationToken);
     }
 
+    // Đảm bảo các vai trò hệ thống (Admin, User) đã tồn tại trong Identity.
     private async Task EnsureRolesExistAsync(CancellationToken cancellationToken)
     {
         foreach (var name in new[] { "Admin", "User" })
@@ -87,6 +92,7 @@ public sealed class AuthService : IAuthService
         }
     }
 
+    // Tạo cặp JWT/refresh, lưu refresh token đã băm và trả về <see cref="AuthResultDto"/>.
     private async Task<AuthResultDto> IssueAuthResultAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
         var roles = await _userManager.GetRolesAsync(user);
@@ -113,6 +119,7 @@ public sealed class AuthService : IAuthService
         };
     }
 
+    // Làm mới access token bằng refresh token hợp lệ; thu hồi bản ghi cũ và tạo bản ghi mới.
     public async Task<TokenPairDto> RefreshTokenAsync(RefreshTokenRequestDto dto, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -142,6 +149,7 @@ public sealed class AuthService : IAuthService
         return tokens;
     }
 
+    // Đăng xuất: thu hồi access/refresh token và cập nhật bản ghi refresh nếu có.
     public async Task<LogoutResultDto> LogoutAsync(
         Guid currentUserId,
         string? accessToken,
@@ -178,6 +186,7 @@ public sealed class AuthService : IAuthService
         return new LogoutResultDto { LoggedOut = true };
     }
 
+    // Lấy thông tin hồ sơ người dùng hiện tại theo Id.
     public async Task<CurrentUserDto> MeAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -196,6 +205,7 @@ public sealed class AuthService : IAuthService
         };
     }
 
+    // Sinh token đặt lại mật khẩu cho email; trả chuỗi rỗng nếu không tìm thấy user (không lộ tồn tại).
     public async Task<string> GeneratePasswordResetTokenAsync(string email, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -206,6 +216,7 @@ public sealed class AuthService : IAuthService
         return await _userManager.GeneratePasswordResetTokenAsync(user);
     }
 
+    // Đặt lại mật khẩu bằng token; bỏ qua im lặng nếu email không khớp user nào.
     public async Task ResetPasswordAsync(ResetPasswordRequestDto dto, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

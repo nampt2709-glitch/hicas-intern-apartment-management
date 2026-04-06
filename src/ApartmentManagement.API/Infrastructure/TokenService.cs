@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace ApartmentManagement.Infrastructure;
 
+// Tạo JWT access (HMAC-SHA256) và refresh token ngẫu nhiên; hash refresh để lưu DB.
 public sealed class TokenService : ITokenService
 {
     private readonly JwtSettings _settings;
@@ -22,6 +23,7 @@ public sealed class TokenService : ITokenService
         _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Key));
     }
 
+    // sinh jti, access JWT, refresh Base64; thời hạn lấy từ JwtSettings.
     public async Task<TokenPairDto> CreateTokensAsync(ApplicationUser user, IList<string> roles, CancellationToken cancellationToken = default)
     {
         var jti = Guid.NewGuid();
@@ -37,6 +39,7 @@ public sealed class TokenService : ITokenService
         };
     }
 
+    // dựng claims chuẩn (sub, email, jti, role) rồi ký JwtSecurityToken.
     public Task<string> GenerateAccessTokenAsync(ApplicationUser user, IList<string> roles, Guid jti, CancellationToken cancellationToken = default)
     {
         var claims = new List<Claim>
@@ -63,6 +66,7 @@ public sealed class TokenService : ITokenService
         return Task.FromResult(new JwtSecurityTokenHandler().WriteToken(token));
     }
 
+    // Hash SHA256 hex (dùng so khớp refresh token trong DB mà không lưu plaintext).
     public string HashToken(string token)
     {
         using var sha = SHA256.Create();
@@ -70,6 +74,7 @@ public sealed class TokenService : ITokenService
         return Convert.ToHexString(hash);
     }
 
+    // 64 byte ngẫu nhiên mật mã → Base64 làm refresh token.
     public string GenerateRefreshToken()
     {
         var bytes = RandomNumberGenerator.GetBytes(64);

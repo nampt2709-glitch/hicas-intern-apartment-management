@@ -2,6 +2,7 @@
 
 namespace ApartmentManagement.API.V1.Interfaces.Repositories;
 
+// Hóa đơn: tải theo dõi kèm chi tiết, xóa chi tiết, đồ thị đọc, tra cứu căn theo hóa đơn.
 public interface IInvoiceRepository : IGenericRepository<Invoice>
 {
     Task<Invoice?> GetTrackedWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);

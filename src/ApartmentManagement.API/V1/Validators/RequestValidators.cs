@@ -1,4 +1,6 @@
-﻿using ApartmentManagement.API.V1.Interfaces.Services;
+﻿// Bộ FluentValidation cho các DTO API (đăng nhập, người dùng, căn hộ, hóa đơn, phản hồi...).
+// Giới hạn độ dài/giá trị và kiểm tra tham chiếu qua IReferenceEntityLookup khi cần.
+using ApartmentManagement.API.V1.Interfaces.Services;
 using ApartmentManagement.API.V1.DTOs.Apartments;
 using ApartmentManagement.API.V1.DTOs.Auth;
 using ApartmentManagement.API.V1.DTOs.Common;
@@ -11,6 +13,7 @@ using FluentValidation.Validators;
 
 namespace ApartmentManagement.API.V1.Validators;
 
+// Hằng số giới hạn dùng chung cho phân trang và các trường số trong validator.
 internal static class ValidationLimits
 {
     public const int MaxPageSize = 100;
@@ -18,6 +21,7 @@ internal static class ValidationLimits
     public const decimal MaxUnitPrice = 999_999_999.99m;
 }
 
+// Xác thực yêu cầu đăng nhập (email + mật khẩu).
 public class LoginRequestDtoValidator : AbstractValidator<LoginRequestDto>
 {
     public LoginRequestDtoValidator()
@@ -31,6 +35,7 @@ public class LoginRequestDtoValidator : AbstractValidator<LoginRequestDto>
     }
 }
 
+// Xác thực cặp access token + refresh token khi làm mới phiên.
 public class RefreshTokenRequestDtoValidator : AbstractValidator<RefreshTokenRequestDto>
 {
     public RefreshTokenRequestDtoValidator()
@@ -40,6 +45,7 @@ public class RefreshTokenRequestDtoValidator : AbstractValidator<RefreshTokenReq
     }
 }
 
+// Xác thực email khi yêu cầu quên mật khẩu.
 public class ForgotPasswordRequestDtoValidator : AbstractValidator<ForgotPasswordRequestDto>
 {
     public ForgotPasswordRequestDtoValidator()
@@ -51,6 +57,7 @@ public class ForgotPasswordRequestDtoValidator : AbstractValidator<ForgotPasswor
     }
 }
 
+// Xác thực đặt lại mật khẩu (email, token, mật khẩu mới).
 public class ResetPasswordRequestDtoValidator : AbstractValidator<ResetPasswordRequestDto>
 {
     public ResetPasswordRequestDtoValidator()
@@ -65,6 +72,7 @@ public class ResetPasswordRequestDtoValidator : AbstractValidator<ResetPasswordR
     }
 }
 
+// Xác thực mật khẩu mới khi admin đặt lại cho người dùng.
 public class ResetUserPasswordDtoValidator : AbstractValidator<ResetUserPasswordDto>
 {
     public ResetUserPasswordDtoValidator()
@@ -77,7 +85,7 @@ public class RegisterRequestDtoValidator : AbstractValidator<RegisterRequestDto>
 {
     private const string PhonePattern = @"^\+?[0-9][0-9\-\s()]{6,28}[0-9]$";
 
-    /// <summary>Sync rules only (ASP.NET automatic validation is not async). Email uniqueness is checked in AuthService.RegisterAsync.</summary>
+    // Chỉ quy tắc đồng bộ (validation tự động ASP.NET không hỗ trợ async). Trùng email được kiểm tra trong AuthService.RegisterAsync.
     public RegisterRequestDtoValidator()
     {
         RuleFor(x => x.Email)
@@ -106,7 +114,7 @@ public class CreateUserRequestDtoValidator : AbstractValidator<CreateUserRequest
 
     private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase) { "Admin", "User" };
 
-    /// <summary>Sync rules only. Email uniqueness is checked in UserService.CreateAsync.</summary>
+    // Chỉ quy tắc đồng bộ. Trùng email được kiểm tra trong UserService.CreateAsync.
     public CreateUserRequestDtoValidator()
     {
         RuleFor(x => x.Email)
@@ -142,6 +150,7 @@ public class CreateUserRequestDtoValidator : AbstractValidator<CreateUserRequest
     }
 }
 
+// Xác thực tham số phân trang (trang, kích thước, tìm kiếm, sắp xếp).
 public class PaginationQueryDtoValidator : AbstractValidator<PaginationQueryDto>
 {
     public PaginationQueryDtoValidator()
@@ -153,6 +162,7 @@ public class PaginationQueryDtoValidator : AbstractValidator<PaginationQueryDto>
     }
 }
 
+// Xác thực cập nhật thông tin người dùng (admin), kèm kiểm tra tồn tại user và email.
 public class CurrentUserDtoValidator : AbstractValidator<CurrentUserDto>
 {
     public CurrentUserDtoValidator(IReferenceEntityLookup refs)
@@ -186,6 +196,7 @@ public class CurrentUserDtoValidator : AbstractValidator<CurrentUserDto>
     }
 }
 
+// Xác thực người dùng tự cập nhật hồ sơ (họ tên, SĐT, đổi mật khẩu).
 public class UpdateMyProfileDtoValidator : AbstractValidator<UpdateMyProfileDto>
 {
     private const string PhonePattern = @"^\+?[0-9][0-9\-\s()]{6,28}[0-9]$";
@@ -215,6 +226,7 @@ public class UpdateMyProfileDtoValidator : AbstractValidator<UpdateMyProfileDto>
     }
 }
 
+// Xác thực tạo căn hộ (số căn duy nhất, tầng, diện tích, trạng thái).
 public class ApartmentCreateDtoValidator : AbstractValidator<ApartmentCreateDto>
 {
     public ApartmentCreateDtoValidator(IReferenceEntityLookup refs)
@@ -235,6 +247,7 @@ public class ApartmentCreateDtoValidator : AbstractValidator<ApartmentCreateDto>
     }
 }
 
+// Xác thực cập nhật căn hộ (bỏ qua trùng số căn với chính bản ghi hiện tại qua RootContextData).
 public class ApartmentUpdateDtoValidator : AbstractValidator<ApartmentUpdateDto>
 {
     public ApartmentUpdateDtoValidator(IReferenceEntityLookup refs)
@@ -260,6 +273,7 @@ public class ApartmentUpdateDtoValidator : AbstractValidator<ApartmentUpdateDto>
     }
 }
 
+// Xác thực tạo cư dân (căn hộ, user tùy chọn, xung đột gán qua refs).
 public class ResidentCreateDtoValidator : AbstractValidator<ResidentCreateDto>
 {
     private const string PhonePattern = @"^\+?[0-9][0-9\-\s()]{6,28}[0-9]$";
@@ -305,6 +319,7 @@ public class ResidentCreateDtoValidator : AbstractValidator<ResidentCreateDto>
     }
 }
 
+// Xác thực cập nhật cư dân (ngày chuyển đi so với chuyển đến, xung đột gán).
 public class ResidentUpdateDtoValidator : AbstractValidator<ResidentUpdateDto>
 {
     private const string PhonePattern = @"^\+?[0-9][0-9\-\s()]{6,28}[0-9]$";
@@ -356,6 +371,7 @@ public class ResidentUpdateDtoValidator : AbstractValidator<ResidentUpdateDto>
     }
 }
 
+// Xác thực tạo dịch vụ tiện ích (tên duy nhất, đơn vị, đơn giá).
 public class UtilityServiceCreateDtoValidator : AbstractValidator<UtilityServiceCreateDto>
 {
     public UtilityServiceCreateDtoValidator(IReferenceEntityLookup refs)
@@ -378,6 +394,7 @@ public class UtilityServiceCreateDtoValidator : AbstractValidator<UtilityService
     }
 }
 
+// Xác thực cập nhật dịch vụ tiện ích (tên không trùng bản ghi khác).
 public class UtilityServiceUpdateDtoValidator : AbstractValidator<UtilityServiceUpdateDto>
 {
     public UtilityServiceUpdateDtoValidator(IReferenceEntityLookup refs)
@@ -405,6 +422,7 @@ public class UtilityServiceUpdateDtoValidator : AbstractValidator<UtilityService
     }
 }
 
+// Xác thực một dòng chi tiết hóa đơn (dịch vụ, số lượng, đơn giá).
 public class InvoiceDetailCreateDtoValidator : AbstractValidator<InvoiceDetailCreateDto>
 {
     public InvoiceDetailCreateDtoValidator(IReferenceEntityLookup refs)
@@ -420,6 +438,7 @@ public class InvoiceDetailCreateDtoValidator : AbstractValidator<InvoiceDetailCr
     }
 }
 
+// Xác thực tạo hóa đơn (tháng thanh toán duy nhất theo căn, chi tiết không trùng dịch vụ).
 public class InvoiceCreateDtoValidator : AbstractValidator<InvoiceCreateDto>
 {
     public InvoiceCreateDtoValidator(IReferenceEntityLookup refs)
@@ -464,6 +483,7 @@ public class InvoiceCreateDtoValidator : AbstractValidator<InvoiceCreateDto>
     }
 }
 
+// Xác thực cập nhật hóa đơn (tương tự tạo, loại trừ id hóa đơn hiện tại khi kiểm tra tháng).
 public class InvoiceUpdateDtoValidator : AbstractValidator<InvoiceUpdateDto>
 {
     public InvoiceUpdateDtoValidator(IReferenceEntityLookup refs)
@@ -510,6 +530,7 @@ public class InvoiceUpdateDtoValidator : AbstractValidator<InvoiceUpdateDto>
     }
 }
 
+// Xác thực tạo phản hồi (nội dung, phản hồi cha, tham chiếu căn/hóa đơn tùy chọn).
 public class FeedbackCreateDtoValidator : AbstractValidator<FeedbackCreateDto>
 {
     public FeedbackCreateDtoValidator(IReferenceEntityLookup refs)

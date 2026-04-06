@@ -3,6 +3,7 @@ using ApartmentManagement.Performance;
 
 namespace ApartmentManagement.Middlewares;
 
+// Đo thời gian xử lý request, ghi vào PerformanceMetricsService; gắn header chẩn đoán khi phản hồi bắt đầu.
 public sealed class PerformanceMetricsMiddleware
 {
     private readonly RequestDelegate _next;
@@ -17,6 +18,7 @@ public sealed class PerformanceMetricsMiddleware
         var sw = Stopwatch.StartNew();
         var recorded = false;
 
+        // Chỉ ghi một lần (OnStarting hoặc finally nếu chưa ghi).
         void Record()
         {
             if (recorded)
@@ -27,6 +29,7 @@ public sealed class PerformanceMetricsMiddleware
             metrics.RecordRequest(path, (int)sw.ElapsedMilliseconds, context.Response.StatusCode);
         }
 
+        // Khi response chuẩn bị gửi: ghi metrics + header snapshot (trừ endpoint /performance).
         context.Response.OnStarting(() =>
         {
             Record();

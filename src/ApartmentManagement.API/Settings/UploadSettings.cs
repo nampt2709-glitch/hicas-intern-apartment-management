@@ -1,9 +1,6 @@
 namespace ApartmentManagement.Settings;
 
-/// <summary>
-/// Physical layout under <see cref="BasePath"/>: <c>avatars/{userId}/</c>, <c>apartmentImages/{apartmentId}/</c>.
-/// <see cref="StagingPath"/> must resolve inside <see cref="BasePath"/> (path traversal checks).
-/// </summary>
+// Cấu trúc vật lý dưới <see cref="BasePath"/>: <c>avatars/{userId}/</c>, <c>apartmentImages/{apartmentId}/</c>. <see cref="StagingPath"/> phải nằm trong <see cref="BasePath"/> (kiểm tra path traversal).
 public sealed class UploadSettings
 {
     public string BasePath { get; set; } = "/app/uploads";

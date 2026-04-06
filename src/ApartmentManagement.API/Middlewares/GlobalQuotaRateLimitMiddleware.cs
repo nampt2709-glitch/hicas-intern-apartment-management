@@ -3,6 +3,7 @@ using ApartmentManagement.Infrastructure;
 
 namespace ApartmentManagement.Middlewares;
 
+// Quota toàn cục trên /api: bucket hệ thống, ẩn danh theo IP, đã đăng nhập theo user + role (Admin cao hơn).
 public sealed class GlobalQuotaRateLimitMiddleware
 {
     private readonly RequestDelegate _next;
@@ -14,7 +15,7 @@ public sealed class GlobalQuotaRateLimitMiddleware
 
     public async Task InvokeAsync(HttpContext context, QuotaRateLimiter quota)
     {
-        // Only rate limit API traffic
+        // Bỏ qua không phải /api (Swagger, static...).
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
             await _next(context);
@@ -24,7 +25,7 @@ public sealed class GlobalQuotaRateLimitMiddleware
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var isAuth = context.User.Identity?.IsAuthenticated == true;
 
-        // 9) Whole system: 1800 req/min
+        // Cửa sổ 1 phút: toàn hệ thống tối đa 1800 request.
         if (!quota.TryConsume("global:system", 1800, TimeSpan.FromMinutes(1), out _, out _))
         {
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -34,7 +35,7 @@ public sealed class GlobalQuotaRateLimitMiddleware
 
         if (!isAuth)
         {
-            // 1) Anonymous: 60 req/min/IP
+            // Ẩn danh: 60 request/phút/IP.
             if (!quota.TryConsume($"global:anon:ip:{ip}", 60, TimeSpan.FromMinutes(1), out _, out _))
             {
                 context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -46,7 +47,7 @@ public sealed class GlobalQuotaRateLimitMiddleware
             return;
         }
 
-        // 9) Authenticated API total: 1200 req/min (shared bucket for authenticated traffic)
+        // Đã đăng nhập: bucket chung 1200 request/phút cho toàn bộ traffic xác thực.
         if (!quota.TryConsume("global:authenticated", 1200, TimeSpan.FromMinutes(1), out _, out _))
         {
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -54,7 +55,7 @@ public sealed class GlobalQuotaRateLimitMiddleware
             return;
         }
 
-        // 1) Per-user role-based
+        // Theo user: Admin 240/phút, user thường 150/phút.
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
         var isAdmin = context.User.IsInRole("Admin");
         var perMinute = isAdmin ? 240 : 150;

@@ -7,8 +7,12 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+
+// Mục đích file: REST API quản lý căn hộ — phân trang, CRUD (Admin), xem căn của cư dân, upload ảnh; có rate limit và FluentValidation.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller căn hộ — kế thừa ApiControllerBase để thống nhất định dạng phản hồi và GetUserId.
 public sealed class ApartmentsController : ApiControllerBase
 {
     private readonly IApartmentService _service;
@@ -17,6 +21,7 @@ public sealed class ApartmentsController : ApiControllerBase
     private readonly IValidator<ApartmentUpdateDto> _updateValidator;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: dịch vụ căn hộ; kiểm tra/lưu file upload; validator tạo/cập nhật DTO; giới hạn quota theo thao tác admin.
     public ApartmentsController(
         IApartmentService service,
         IUploadValidator uploadValidator,
@@ -31,21 +36,25 @@ public sealed class ApartmentsController : ApiControllerBase
         _quota = quota;
     }
 
+    // GET danh sách căn hộ có phân trang (User/Admin).
     [HttpGet]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetPagedAsync(query, cancellationToken), "Apartments retrieved.");
 
+    // GET căn hộ gắn với cư dân đang đăng nhập (theo UserId).
     [HttpGet("me")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
         => ApiOk(await _service.GetMineForResidentAsync(GetUserId(), cancellationToken), "Apartment retrieved.");
 
+    // GET chi tiết một căn theo id (chỉ Admin).
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => ApiOk(await _service.GetByIdAsync(id, cancellationToken: cancellationToken), "Apartment retrieved.");
 
+    // POST tạo căn mới — quota theo admin/giờ, validate DTO, trả 201.
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -61,6 +70,7 @@ public sealed class ApartmentsController : ApiControllerBase
         return ApiCreated(await _service.CreateAsync(dto, cancellationToken), "Apartment created.");
     }
 
+    // PUT cập nhật căn — quota, validation có Route id trong context, trả 200.
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -78,6 +88,7 @@ public sealed class ApartmentsController : ApiControllerBase
         return ApiOk(await _service.UpdateAsync(id, dto, cancellationToken), "Apartment updated.");
     }
 
+    // DELETE xóa căn (mềm) — quota theo admin, gọi service Delete.
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -92,6 +103,7 @@ public sealed class ApartmentsController : ApiControllerBase
         return ApiDeleted("Apartment deleted.");
     }
 
+    // POST khôi phục căn đã xóa mềm — quota theo admin.
     [HttpPost("{id:guid}/restore")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -106,6 +118,7 @@ public sealed class ApartmentsController : ApiControllerBase
         return ApiOk(new { restored = true }, "Apartment restored.");
     }
 
+    // POST upload ảnh căn — validate file, lưu qua upload validator, gắn đường dẫn vào căn qua service.
     [HttpPost("{id:guid}/images")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("apartment-images-20-per-min-ip")]

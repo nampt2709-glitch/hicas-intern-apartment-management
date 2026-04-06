@@ -10,10 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace ApartmentManagement.Infrastructure;
 
-/// <summary>
-/// Stores files only under <c>{BasePath}/avatars/{userId}/</c> and <c>{BasePath}/apartmentImages/{apartmentId}/</c>.
-/// This API does not map uploads as anonymous static files; serve images through authenticated endpoints if needed.
-/// </summary>
+// Chỉ lưu file dưới <c>{BasePath}/avatars/{userId}/</c> và <c>{BasePath}/apartmentImages/{apartmentId}/</c>. API không phục vụ static file ẩn danh; cần endpoint có xác thực nếu muốn trả ảnh.
 public sealed class UploadValidatorService : IUploadValidator
 {
     private const int MagicHeaderReadBytes = 32;
@@ -34,9 +31,11 @@ public sealed class UploadValidatorService : IUploadValidator
         _malwareScanner = malwareScanner;
         _telemetry = telemetry;
 
+        // Tạo thư mục gốc upload + staging khi khởi tạo service.
         EnsureUploadDirectories();
     }
 
+    // đảm bảo BasePath, StagingPath tồn tại và staging nằm trong root; tạo thư mục con avatars/apartmentImages.
     private void EnsureUploadDirectories()
     {
         var root = UploadPathSecurity.NormalizeDirectory(_settings.BasePath);
@@ -50,6 +49,7 @@ public sealed class UploadValidatorService : IUploadValidator
         Directory.CreateDirectory(Path.Combine(root, "apartmentImages"));
     }
 
+    // kiểm tra có file và không vượt MaxFilesPerRequest.
     public Task ValidateRequestAsync(IReadOnlyCollection<IFormFile> files, CancellationToken cancellationToken = default)
     {
         if (files is null || files.Count == 0)
@@ -64,6 +64,7 @@ public sealed class UploadValidatorService : IUploadValidator
     public Task ValidateImageAsync(IFormFile file, CancellationToken cancellationToken = default)
         => ValidateImageMetadataAsync(file, cancellationToken);
 
+    // Avatar: xóa thư mục user trước (một avatar), bỏ kiểm tra trùng hash.
     public Task<UploadResultDto> SaveUserAvatarAsync(IFormFile file, Guid userId, CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
@@ -72,6 +73,7 @@ public sealed class UploadValidatorService : IUploadValidator
         return SaveImageCoreAsync(file, category, clearTargetDirectoryFirst: true, skipDuplicateDetection: true, cancellationToken);
     }
 
+    // Ảnh căn hộ: giữ nhiều file; bật phát hiện trùng nội dung nếu cấu hình.
     public Task<UploadResultDto> SaveApartmentImageAsync(IFormFile file, Guid apartmentId, CancellationToken cancellationToken = default)
     {
         if (apartmentId == Guid.Empty)
@@ -90,6 +92,7 @@ public sealed class UploadValidatorService : IUploadValidator
         _telemetry.RecordAttempt();
         try
         {
+            // validate metadata stream → chuẩn hóa đường dẫn → tạo thư mục đích an toàn.
             await ValidateImageMetadataAsync(file, cancellationToken);
 
             var safeCategory = SanitizeCategory(category);
@@ -106,6 +109,7 @@ public sealed class UploadValidatorService : IUploadValidator
             var targetDirFull = Path.GetFullPath(targetDir);
             UploadPathSecurity.AssertPathUnderRoot(root, targetDirFull);
 
+            // Tùy chọn: xóa file cũ trong thư mục (avatar — một file đại diện).
             if (clearTargetDirectoryFirst && Directory.Exists(targetDirFull))
             {
                 foreach (var existing in Directory.GetFiles(targetDirFull))
@@ -129,6 +133,7 @@ public sealed class UploadValidatorService : IUploadValidator
             var tempPath = Path.GetFullPath(Path.Combine(stagingRoot, tempName));
             UploadPathSecurity.AssertPathUnderRoot(stagingRoot, tempPath);
 
+            // Ghi file tạm vào staging rồi kiểm tra kích thước, chữ ký ảnh, kích thước pixel, malware.
             await using (var temp = File.Create(tempPath))
             {
                 await file.CopyToAsync(temp, cancellationToken);
@@ -170,6 +175,7 @@ public sealed class UploadValidatorService : IUploadValidator
                         throw new InvalidOperationException(scan.Reason ?? "Upload failed malware scan.");
                 }
 
+                // Đặt tên file = hash + extension; chuyển từ staging sang đích.
                 File.Move(tempPath, targetPath, overwrite: true);
 
                 _telemetry.RecordSuccess();
@@ -192,6 +198,7 @@ public sealed class UploadValidatorService : IUploadValidator
         }
         catch (Exception ex)
         {
+            // Ghi thất bại telemetry + snapshot tỷ lệ lỗi rồi ném lại exception gốc.
             _telemetry.RecordFailure();
             var snapshot = _telemetry.Snapshot();
             _logger.LogWarning(ex, "Upload validation failed. Attempts={Attempts} Failures={Failures} FailureRate={FailureRate:P2}", snapshot.Attempts, snapshot.Failures, snapshot.FailureRate);
@@ -199,6 +206,7 @@ public sealed class UploadValidatorService : IUploadValidator
         }
     }
 
+    // Chỉ cho phép nhánh đầu là avatars hoặc apartmentImages (chống ghi ra ngoài ý định).
     private static void AssertAllowedUploadSubtree(string safeCategory)
     {
         var parts = safeCategory.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
@@ -212,6 +220,7 @@ public sealed class UploadValidatorService : IUploadValidator
         }
     }
 
+    // kiểm tra tên file, kích thước, extension/MIME cho phép, đọc header khớp magic bytes.
     private async Task ValidateImageMetadataAsync(IFormFile file, CancellationToken cancellationToken)
     {
         if (file is null)
@@ -258,6 +267,7 @@ public sealed class UploadValidatorService : IUploadValidator
         _logger.LogInformation("Validated upload metadata: {FileName} {Size} bytes {MimeType}", originalName, file.Length, contentType);
     }
 
+    // kiểm tra lại file đã ghi đĩa (tránh race / tampering sau khi copy).
     private async Task AssertTempFileIsValidImageAsync(
         string tempPath,
         string extensionLower,
@@ -282,6 +292,7 @@ public sealed class UploadValidatorService : IUploadValidator
             throw new InvalidOperationException("Stored file MIME does not match content.");
     }
 
+    // Chuẩn hóa alias MIME (image/jpg → image/jpeg).
     private static string NormalizeDeclaredMime(string? contentType)
     {
         if (string.IsNullOrWhiteSpace(contentType))
@@ -294,6 +305,7 @@ public sealed class UploadValidatorService : IUploadValidator
         };
     }
 
+    // Hash nội dung file (hex lowercase) để đặt tên và phát hiện trùng.
     private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
@@ -302,6 +314,7 @@ public sealed class UploadValidatorService : IUploadValidator
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    // Tách segment đường dẫn, loại ký tự không hợp lệ và "..".
     private static string SanitizeCategory(string category)
     {
         var rawSegments = string.IsNullOrWhiteSpace(category)
@@ -332,7 +345,7 @@ public sealed class UploadValidatorService : IUploadValidator
         }
         catch
         {
-            // best effort cleanup
+            // Dọn file tạm best-effort — không che giấu lỗi nghiệp vụ.
         }
     }
 }

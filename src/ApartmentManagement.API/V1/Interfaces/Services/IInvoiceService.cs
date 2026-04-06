@@ -3,6 +3,7 @@ using ApartmentManagement.API.V1.DTOs.Invoices;
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Hóa đơn: phân trang, danh sách theo cư dân, CRUD, khôi phục.
 public interface IInvoiceService
 {
     Task<PagedResultDto<InvoiceReadDto>> GetPagedAsync(PaginationQueryDto query, CancellationToken cancellationToken = default);

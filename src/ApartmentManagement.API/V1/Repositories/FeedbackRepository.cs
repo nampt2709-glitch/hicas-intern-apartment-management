@@ -6,13 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Repositories;
 
+// Repository phản hồi: cây đệ quy SQL (CTE) trả về các dòng phẳng có độ sâu.
 public sealed class FeedbackRepository : RepositoryBase<Feedback>, IFeedbackRepository
 {
+    // Khởi tạo với DbContext chung.
     public FeedbackRepository(ApartmentDbContext db)
         : base(db)
     {
     }
 
+    // Thực thi truy vấn đệ quy trên Feedbacks theo bộ lọc (gốc toàn cục, gốc một luồng, giới hạn user).
     public Task<List<FeedbackTreeRowDto>> GetFeedbackTreeRowsAsync(
         FeedbackTreeFilter filter,
         CancellationToken cancellationToken = default)

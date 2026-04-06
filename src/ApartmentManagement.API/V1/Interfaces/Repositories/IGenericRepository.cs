@@ -2,6 +2,7 @@
 
 namespace ApartmentManagement.API.V1.Interfaces.Repositories;
 
+// Repository generic cho entity kế thừa BaseEntity (truy vấn, CRUD, soft-delete, khôi phục).
 public interface IGenericRepository<T> where T : BaseEntity
 {
     IQueryable<T> Query(bool asNoTracking = true, bool includeDeleted = false);

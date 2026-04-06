@@ -8,8 +8,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
+// Mục đích file: REST API dịch vụ tiện ích (điện, nước, v.v.) — phân trang, CRUD Admin, User/Admin xem; soft delete và khôi phục.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller dịch vụ tiện ích — kế thừa ApiControllerBase.
 public sealed class UtilityServicesController : ApiControllerBase
 {
     private readonly IUtilityServiceService _service;
@@ -17,6 +20,7 @@ public sealed class UtilityServicesController : ApiControllerBase
     private readonly IValidator<UtilityServiceUpdateDto> _updateValidator;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: IUtilityServiceService, validator tạo/cập nhật DTO, QuotaRateLimiter cho thao tác Admin.
     public UtilityServicesController(IUtilityServiceService service, IValidator<UtilityServiceCreateDto> createValidator, IValidator<UtilityServiceUpdateDto> updateValidator, QuotaRateLimiter quota)
     {
         _service = service;
@@ -25,16 +29,19 @@ public sealed class UtilityServicesController : ApiControllerBase
         _quota = quota;
     }
 
+    // GET danh sách dịch vụ phân trang (User/Admin).
     [HttpGet]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetPagedAsync(query, cancellationToken), "Services retrieved.");
 
+    // GET chi tiết một dịch vụ theo id (User/Admin).
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => ApiOk(await _service.GetByIdAsync(id, cancellationToken: cancellationToken), "Service retrieved.");
 
+    // POST tạo dịch vụ (Admin) — quota, validate, 201.
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -50,6 +57,7 @@ public sealed class UtilityServicesController : ApiControllerBase
         return ApiCreated(await _service.CreateAsync(dto, cancellationToken), "Service created.");
     }
 
+    // PUT cập nhật dịch vụ (Admin) — quota, validation có UtilityServiceId trong context.
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -67,6 +75,7 @@ public sealed class UtilityServicesController : ApiControllerBase
         return ApiOk(await _service.UpdateAsync(id, dto, cancellationToken), "Service updated.");
     }
 
+    // DELETE xóa mềm dịch vụ (Admin) — quota.
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -81,6 +90,7 @@ public sealed class UtilityServicesController : ApiControllerBase
         return ApiDeleted("Service deleted.");
     }
 
+    // POST khôi phục dịch vụ đã xóa mềm (Admin) — quota.
     [HttpPost("{id:guid}/restore")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]

@@ -8,8 +8,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
+// Mục đích file: API xác thực — đăng ký, đăng nhập, làm mới token, đăng xuất, quên/đặt lại mật khẩu, xem profile; rate limit và log bảo mật.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller xác thực — kế thừa ApiControllerBase; toàn controller dùng policy rate limiting "auth".
 [EnableRateLimiting("auth")]
 public sealed class AuthController : ApiControllerBase
 {
@@ -21,6 +24,7 @@ public sealed class AuthController : ApiControllerBase
     private readonly IValidator<ResetPasswordRequestDto> _resetValidator;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: IAuthService (nghiệp vụ đăng nhập/token/reset), các FluentValidator cho từng DTO, QuotaRateLimiter (IP/email/token).
     public AuthController(
         IAuthService authService,
         IValidator<RegisterRequestDto> registerValidator,
@@ -39,6 +43,7 @@ public sealed class AuthController : ApiControllerBase
         _quota = quota;
     }
 
+    // POST đăng ký — giới hạn theo IP và email, validate, gọi RegisterAsync, log thành công/thất bại.
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto dto, CancellationToken cancellationToken)
@@ -68,6 +73,7 @@ public sealed class AuthController : ApiControllerBase
         }
     }
 
+    // POST đăng nhập — chặn IP quá nhiều lần sai, quota theo tài khoản, validate, LoginAsync; UnauthorizedAccessException tích lũy fail theo IP.
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto dto, CancellationToken cancellationToken)
@@ -114,6 +120,7 @@ public sealed class AuthController : ApiControllerBase
         }
     }
 
+    // POST làm mới access token — quota theo giá trị refresh token (anonymous), validate, RefreshTokenAsync.
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto dto, CancellationToken cancellationToken)
@@ -146,6 +153,7 @@ public sealed class AuthController : ApiControllerBase
         }
     }
 
+    // POST đăng xuất (User/Admin) — lấy Bearer từ header, GetUserId, thu hồi refresh token qua LogoutAsync.
     [HttpPost("logout")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto dto, CancellationToken cancellationToken)
@@ -166,6 +174,7 @@ public sealed class AuthController : ApiControllerBase
         }
     }
 
+    // POST quên mật khẩu — validate, quota theo email, tạo token; môi trường Development có thể trả token trong body.
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto, CancellationToken cancellationToken)
@@ -190,6 +199,7 @@ public sealed class AuthController : ApiControllerBase
         return ApiOk(new { sent = true }, "If the email exists, a reset instruction has been sent.");
     }
 
+    // POST đặt lại mật khẩu bằng token — validate, quota theo email và theo token, gọi ResetPasswordAsync.
     [HttpPost("reset-password")]
     [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto dto, CancellationToken cancellationToken)
@@ -211,6 +221,7 @@ public sealed class AuthController : ApiControllerBase
         return ApiOk(new { reset = true }, "Password reset successful.");
     }
 
+    // GET profile hiện tại (User/Admin) — MeAsync theo userId từ JWT.
     [HttpGet("me")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> Me(CancellationToken cancellationToken)

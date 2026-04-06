@@ -8,8 +8,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
+// Mục đích file: REST API quản lý cư dân — Admin CRUD + khôi phục; User/Admin xem bản ghi cư dân của mình; quota và validation.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller cư dân — kế thừa ApiControllerBase.
 public sealed class ResidentsController : ApiControllerBase
 {
     private readonly IResidentService _service;
@@ -17,6 +20,7 @@ public sealed class ResidentsController : ApiControllerBase
     private readonly IValidator<ResidentUpdateDto> _updateValidator;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: IResidentService, validator tạo/cập nhật, QuotaRateLimiter cho thao tác Admin.
     public ResidentsController(IResidentService service, IValidator<ResidentCreateDto> createValidator, IValidator<ResidentUpdateDto> updateValidator, QuotaRateLimiter quota)
     {
         _service = service;
@@ -25,21 +29,25 @@ public sealed class ResidentsController : ApiControllerBase
         _quota = quota;
     }
 
+    // GET danh sách cư dân phân trang (Admin).
     [HttpGet]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetPagedAsync(query, cancellationToken), "Residents retrieved.");
 
+    // GET hồ sơ cư dân gắn với user đang đăng nhập (User/Admin).
     [HttpGet("me")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
         => ApiOk(await _service.GetMineForUserAsync(GetUserId(), cancellationToken), "Resident retrieved.");
 
+    // GET chi tiết cư dân theo id (Admin).
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => ApiOk(await _service.GetByIdAsync(id, cancellationToken: cancellationToken), "Resident retrieved.");
 
+    // POST tạo cư dân (Admin) — quota, validate, 201.
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -55,6 +63,7 @@ public sealed class ResidentsController : ApiControllerBase
         return ApiCreated(await _service.CreateAsync(dto, cancellationToken), "Resident created.");
     }
 
+    // PUT cập nhật cư dân (Admin) — quota, validation có ResidentId trong context.
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -72,6 +81,7 @@ public sealed class ResidentsController : ApiControllerBase
         return ApiOk(await _service.UpdateAsync(id, dto, cancellationToken), "Resident updated.");
     }
 
+    // DELETE xóa mềm cư dân (Admin) — quota.
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -86,6 +96,7 @@ public sealed class ResidentsController : ApiControllerBase
         return ApiDeleted("Resident deleted.");
     }
 
+    // POST khôi phục cư dân đã xóa mềm (Admin) — quota.
     [HttpPost("{id:guid}/restore")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]

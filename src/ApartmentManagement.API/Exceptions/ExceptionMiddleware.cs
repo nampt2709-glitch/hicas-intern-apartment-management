@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.Exceptions;
 
+// Middleware: bắt mọi exception trong pipeline, map sang HTTP + JSON thống nhất, ghi log Error.
 public sealed class ExceptionMiddleware
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -30,14 +31,17 @@ public sealed class ExceptionMiddleware
     {
         try
         {
+            // chuyển tiếp request tới middleware/controller phía sau.
             await _next(context);
         }
         catch (OperationCanceledException)
         {
+            // Hủy client/timeout — không bọc thành 500, để host xử lý đúng semantics.
             throw;
         }
         catch (Exception ex)
         {
+            // Nếu đã bắt đầu ghi body thì không thể đổi status — log và ném lại.
             if (context.Response.HasStarted)
             {
                 _logger.LogError(ex, "Exception after response started; rethrowing.");
@@ -54,6 +58,7 @@ public sealed class ExceptionMiddleware
         }
     }
 
+    // phân loại exception → mã HTTP + thông điệp phù hợp (FluentValidation, EF, AutoMapper...).
     private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
         switch (ex)
@@ -116,6 +121,7 @@ public sealed class ExceptionMiddleware
         }
     }
 
+    // gom lỗi FluentValidation theo property, ghi log Error và trả 400 kèm dictionary errors.
     private static async Task WriteValidationAsync(HttpContext context, IEnumerable<ValidationFailure> failures)
     {
         var errors = failures
@@ -133,6 +139,7 @@ public sealed class ExceptionMiddleware
         await WriteErrorAsync(context, HttpStatusCode.BadRequest, "Validation failed.", errors);
     }
 
+    // ghi JSON { success, message [, errors] } + header chẩn đoán.
     private static async Task WriteErrorAsync(
         HttpContext context,
         HttpStatusCode code,

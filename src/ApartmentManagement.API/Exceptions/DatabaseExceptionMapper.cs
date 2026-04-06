@@ -2,15 +2,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.Exceptions;
 
-/// <summary>
-/// Maps EF Core / SQL Server failures to HTTP semantics without coupling to SqlClient at compile time.
-/// </summary>
+// Ánh xạ lỗi EF Core / SQL Server sang ngữ nghĩa HTTP mà không reference SqlClient tại compile time.
 internal static class DatabaseExceptionMapper
 {
-    /// <summary>SQL Server: cannot insert duplicate key row / unique constraint.</summary>
+    // Mã lỗi SQL Server: trùng khóa / vi phạm unique constraint.
     private const int SqlDuplicateKey2601 = 2601;
     private const int SqlUniqueConstraint2627 = 2627;
 
+    // Duyệt chuỗi InnerException, đọc SqlException.Number qua reflection nếu có.
     public static bool IsUniqueConstraintViolation(DbUpdateException ex)
     {
         for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)

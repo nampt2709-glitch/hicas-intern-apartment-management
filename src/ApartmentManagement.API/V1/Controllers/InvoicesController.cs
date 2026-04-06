@@ -8,8 +8,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
+// Mục đích file: REST API hóa đơn — Admin CRUD + khôi phục; cư dân xem danh sách hóa đơn của mình; quota và validation.
+
 namespace ApartmentManagement.API.V1.Controllers;
 
+// Controller hóa đơn — kế thừa ApiControllerBase.
 public sealed class InvoicesController : ApiControllerBase
 {
     private readonly IInvoiceService _service;
@@ -17,6 +20,7 @@ public sealed class InvoicesController : ApiControllerBase
     private readonly IValidator<InvoiceUpdateDto> _updateValidator;
     private readonly QuotaRateLimiter _quota;
 
+    // Phụ thuộc inject: IInvoiceService, validator tạo/cập nhật, QuotaRateLimiter cho thao tác Admin.
     public InvoicesController(IInvoiceService service, IValidator<InvoiceCreateDto> createValidator, IValidator<InvoiceUpdateDto> updateValidator, QuotaRateLimiter quota)
     {
         _service = service;
@@ -25,21 +29,25 @@ public sealed class InvoicesController : ApiControllerBase
         _quota = quota;
     }
 
+    // GET danh sách hóa đơn phân trang (Admin).
     [HttpGet]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetPaged([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetPagedAsync(query, cancellationToken), "Invoices retrieved.");
 
+    // GET hóa đơn của cư dân đang đăng nhập (phân trang theo user).
     [HttpGet("me")]
     [Authorize(Roles = "User,Admin")]
     public async Task<IActionResult> GetMine([FromQuery] PaginationQueryDto query, CancellationToken cancellationToken)
         => ApiOk(await _service.GetMineForResidentAsync(query, GetUserId(), cancellationToken), "Invoices retrieved.");
 
+    // GET chi tiết hóa đơn theo id (Admin).
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         => ApiOk(await _service.GetByIdAsync(id, cancellationToken: cancellationToken), "Invoice retrieved.");
 
+    // POST tạo hóa đơn (Admin) — quota, validate, 201.
     [HttpPost]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -55,6 +63,7 @@ public sealed class InvoicesController : ApiControllerBase
         return ApiCreated(await _service.CreateAsync(dto, cancellationToken), "Invoice created.");
     }
 
+    // PUT cập nhật hóa đơn (Admin) — quota, validation có InvoiceId trong context.
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -72,6 +81,7 @@ public sealed class InvoicesController : ApiControllerBase
         return ApiOk(await _service.UpdateAsync(id, dto, cancellationToken), "Invoice updated.");
     }
 
+    // DELETE xóa mềm hóa đơn (Admin) — quota.
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]
@@ -86,6 +96,7 @@ public sealed class InvoicesController : ApiControllerBase
         return ApiDeleted("Invoice deleted.");
     }
 
+    // POST khôi phục hóa đơn đã xóa mềm (Admin) — quota.
     [HttpPost("{id:guid}/restore")]
     [Authorize(Roles = "Admin")]
     [EnableRateLimiting("crud-ip-300-per-min")]

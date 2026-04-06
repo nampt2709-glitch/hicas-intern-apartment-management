@@ -1,4 +1,5 @@
-﻿using ApartmentManagement.API.V1.DTOs.Apartments;
+﻿// Cấu hình AutoMapper: ánh xạ entity ↔ DTO cho API v1 (bỏ qua trường audit/soft-delete qua IgnoreBaseEntityMembers).
+using ApartmentManagement.API.V1.DTOs.Apartments;
 using ApartmentManagement.API.V1.DTOs.Auth;
 using ApartmentManagement.API.V1.DTOs.Feedbacks;
 using ApartmentManagement.API.V1.DTOs.Invoices;
@@ -14,6 +15,7 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
+        // Căn hộ: đếm cư dân/hóa đơn khi đọc; tạo/cập nhật không map quan hệ con.
         CreateMap<Apartment, ApartmentReadDto>()
             .ForMember(d => d.ResidentCount, opt => opt.MapFrom(s => s.Residents.Count))
             .ForMember(d => d.InvoiceCount, opt => opt.MapFrom(s => s.Invoices.Count));
@@ -36,6 +38,7 @@ public class MappingProfile : Profile
 
         CreateMap<ApartmentImage, ApartmentImageReadDto>();
 
+        // Cư dân
         CreateMap<Resident, ResidentReadDto>();
 
         CreateMap<ResidentCreateDto, Resident>()
@@ -51,6 +54,7 @@ public class MappingProfile : Profile
 
         CreateMap<UtilityService, UtilityServiceReadDto>();
 
+        // Dịch vụ tiện ích
         CreateMap<UtilityServiceCreateDto, UtilityService>()
             .IgnoreBaseEntityMembers();
 
@@ -60,6 +64,7 @@ public class MappingProfile : Profile
         CreateMap<InvoiceDetail, InvoiceDetailReadDto>()
             .ForMember(d => d.ServiceName, opt => opt.MapFrom(s => s.UtilityService.ServiceName));
 
+        // Hóa đơn và dòng chi tiết (SubTotal thường do service tính)
         CreateMap<InvoiceDetailCreateDto, InvoiceDetail>()
             .IgnoreBaseEntityMembers()
             .ForMember(d => d.InvoiceId, opt => opt.Ignore())
@@ -95,6 +100,7 @@ public class MappingProfile : Profile
                         ? (s.User.UserName ?? s.User.Email ?? string.Empty)
                         : string.Empty));
 
+        // Phản hồi: UserId/Path do tầng service gán
         CreateMap<FeedbackCreateDto, Feedback>()
             .IgnoreBaseEntityMembers()
             .ForMember(d => d.UserId, opt => opt.Ignore())
@@ -105,6 +111,7 @@ public class MappingProfile : Profile
             .ForMember(d => d.Replies, opt => opt.Ignore())
             .ForMember(d => d.Path, opt => opt.Ignore());
 
+        // Người dùng hiện tại (vai trò map riêng)
         CreateMap<ApplicationUser, CurrentUserDto>()
             .ForMember(d => d.UserId, opt => opt.MapFrom(s => s.Id))
             .ForMember(d => d.Email, opt => opt.MapFrom(s => s.Email ?? string.Empty))
@@ -115,6 +122,7 @@ public class MappingProfile : Profile
     }
 }
 
+// Bỏ qua các trường BaseEntity khi map từ DTO sang entity (Id, audit, soft-delete).
 internal static class MappingProfileExtensions
 {
     public static IMappingExpression<TSource, TDestination> IgnoreBaseEntityMembers<TSource, TDestination>(

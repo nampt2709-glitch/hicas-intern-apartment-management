@@ -2,6 +2,7 @@
 
 namespace ApartmentManagement.API.V1.Interfaces.Services;
 
+// Cache theo scope: get-or-create, vô hiệu hóa scope, thông tin thống kê cache.
 public interface ICacheService
 {
     Task<T> GetOrCreateAsync<T>(string scopeKey, string cacheKey, Func<CancellationToken, Task<T>> factory, TimeSpan absoluteExpirationRelativeToNow, CancellationToken cancellationToken = default);

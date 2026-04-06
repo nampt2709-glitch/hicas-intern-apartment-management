@@ -1,4 +1,8 @@
-﻿using System;
+﻿// =============================================================================
+// Migration Entity Framework Core (Up/Down tạo/sửa bảng). Tệp thuộc lịch sử migration;
+// thay đổi schema mới nên thêm migration mới thay vì sửa migration đã áp dụng trên môi trường chia sẻ.
+// =============================================================================
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable

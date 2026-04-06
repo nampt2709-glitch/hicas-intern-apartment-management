@@ -9,16 +9,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ApartmentManagement.API.V1.Services;
 
+// Dịch vụ hóa đơn: CRUD có Include chi tiết, tổng tiền và danh sách “của cư dân”.
 public sealed class InvoiceService : CrudServiceBase<Invoice, InvoiceReadDto, InvoiceCreateDto, InvoiceUpdateDto>, IInvoiceService
 {
     private readonly IInvoiceRepository _repository;
 
+    // Khởi tạo với repository hóa đơn (graph đọc/ghi chi tiết).
     public InvoiceService(IMapper mapper, ICacheService cache, IInvoiceRepository repository)
         : base(mapper, cache, repository)
     {
         _repository = repository;
     }
 
+    // Truy vấn kèm căn hộ, chi tiết và dịch vụ tiện ích (split query).
     protected override IQueryable<Invoice> BuildReadQuery(bool includeDeleted)
         => _repository.Query(true, includeDeleted)
             .AsSplitQuery()
@@ -26,6 +29,7 @@ public sealed class InvoiceService : CrudServiceBase<Invoice, InvoiceReadDto, In
             .Include(x => x.InvoiceDetails)
             .ThenInclude(x => x.UtilityService);
 
+    // Tìm theo tiêu đề/số căn và sắp theo title, due date hoặc ngày tạo.
     protected override IQueryable<Invoice> ApplySearchAndSort(IQueryable<Invoice> query, PaginationQueryDto paging)
     {
         if (!string.IsNullOrWhiteSpace(paging.Search))
@@ -45,6 +49,7 @@ public sealed class InvoiceService : CrudServiceBase<Invoice, InvoiceReadDto, In
         };
     }
 
+    // Phân trang hóa đơn thuộc các căn hộ mà cư dân (user) đang liên kết.
     public async Task<PagedResultDto<InvoiceReadDto>> GetMineForResidentAsync(PaginationQueryDto query, Guid userId, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"mine={userId:N};page={query.PageNumber};size={query.PageSize};search={query.Search};sort={query.SortBy};desc={query.Descending};deleted={query.IncludeDeleted}";
@@ -62,6 +67,7 @@ public sealed class InvoiceService : CrudServiceBase<Invoice, InvoiceReadDto, In
         }, CacheDuration, cancellationToken);
     }
 
+    // Tạo hóa đơn, tính dòng chi tiết và tổng tiền, trả về bản đọc đầy đủ graph.
     public override async Task<InvoiceReadDto> CreateAsync(InvoiceCreateDto dto, CancellationToken cancellationToken = default)
     {
         var entity = Mapper.Map<Invoice>(dto);
@@ -88,6 +94,7 @@ public sealed class InvoiceService : CrudServiceBase<Invoice, InvoiceReadDto, In
         return Mapper.Map<InvoiceReadDto>(loaded);
     }
 
+    // Cập nhật hóa đơn: thay toàn bộ chi tiết, tính lại tổng và trả graph đọc.
     public override async Task<InvoiceReadDto> UpdateAsync(Guid id, InvoiceUpdateDto dto, CancellationToken cancellationToken = default)
     {
         var entity = await _repository.GetTrackedWithDetailsAsync(id, cancellationToken)

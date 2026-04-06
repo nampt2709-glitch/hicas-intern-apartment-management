@@ -2,11 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace ApartmentManagement.Infrastructure;
 
-/// <summary>
-/// Simple fixed-window quota limiter for endpoint-specific rules that need
-/// multi-dimensional keys (per IP + per account) or "failed-only" tracking.
-/// In-memory: resets on app restart.
-/// </summary>
+// Giới hạn quota cửa sổ cố định (in-memory) cho quy tắc cần khóa đa chiều (IP + tài khoản) hoặc chỉ đếm lỗi. Reset khi restart process.
 public sealed class QuotaRateLimiter
 {
     private readonly IMemoryCache _cache;
@@ -22,6 +18,7 @@ public sealed class QuotaRateLimiter
         public int Count { get; set; }
     }
 
+    // Hết cửa sổ hoặc chưa có state thì mở cửa sổ mới; tăng Count và lưu cache đến resetAt.
     public bool TryConsume(string key, int limit, TimeSpan window, out int remaining, out DateTimeOffset resetAt)
     {
         if (limit <= 0) limit = 1;
@@ -49,9 +46,7 @@ public sealed class QuotaRateLimiter
         return true;
     }
 
-    /// <summary>
-    /// Check quota without consuming a permit.
-    /// </summary>
+    // Kiểm tra đã vượt quota hay chưa mà không trừ lượt.
     public bool IsExceeded(string key, int limit, TimeSpan window, out int remaining, out DateTimeOffset resetAt)
     {
         if (limit <= 0) limit = 1;
